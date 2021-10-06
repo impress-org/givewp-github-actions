@@ -9,9 +9,8 @@ on:
             zip_name:
                 type: string
                 required: true
-
         secrets:
-            GITHUB_TOKEN:
+            github_token:
                 required: true
 
 jobs:
@@ -45,7 +44,7 @@ jobs:
             -   name: Upload release asset
                 uses: actions/upload-release-asset@v1
                 env:
-                    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                    GITHUB_TOKEN: ${{ secrets.github_token }}
                 with:
                     upload_url: ${{ github.event.release.upload_url }}
                     asset_path: ${{github.workspace}}/release.zip
