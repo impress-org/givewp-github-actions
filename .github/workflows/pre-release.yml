@@ -1,0 +1,53 @@
+name: Build Plugin Pre-Release
+
+on:
+    workflow_call:
+        inputs:
+            plugin_slug:
+                type: string
+                required: true
+            zip_name:
+                type: string
+                required: true
+
+        secrets:
+            GITHUB_TOKEN:
+                required: true
+
+jobs:
+    build:
+        name: Build Plugin Artifact
+        runs-on: ubuntu-latest
+
+        steps:
+            -   uses: actions/checkout@v2
+
+            -   name: Install composer dependencies
+                uses: php-actions/composer@v2
+                with:
+                    dev: no
+
+            -   uses: actions/setup-node@v1
+                with:
+                    node-version: '12'
+
+            -   name: Install npm dependencies
+                run: |
+                    npm install -g npm@7
+                    npm ci
+                    npm run build
+
+            -   name: Generate plugin artifact
+                run: |
+                    rsync -rc --exclude-from="$GITHUB_WORKSPACE/.distignore" "${GITHUB_WORKSPACE}/" ${{ inputs.plugin_slug }}/ --delete --delete-excluded
+                    zip -r "${GITHUB_WORKSPACE}/release.zip" ${{ inputs.plugin_slug }}
+
+            -   name: Upload release asset
+                uses: actions/upload-release-asset@v1
+                env:
+                    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                with:
+                    upload_url: ${{ github.event.release.upload_url }}
+                    asset_path: ${{github.workspace}}/release.zip
+                    asset_name: ${{ inputs.zip_name }}.zip
+                    asset_content_type: application/zip
