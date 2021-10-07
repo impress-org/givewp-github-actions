@@ -1,0 +1,107 @@
+name: Release to givewp.com
+
+on:
+    workflow_call:
+        inputs:
+            plugin_slug:
+                type: string
+                required: true
+            zip_name:
+                type: string
+                required: true
+        secrets:
+            GIVEWP_DOWNLOADS_PATH:
+                required: true
+            GIVEWP_CLOUDFLARE_ZONE:
+                required: true
+            WEBSITE_DEPLOY_HOST:
+                required: true
+            WEBSITE_DEPLOY_USER:
+                required: true
+            WEBSITE_DEPLOY_PRIVATE_KEY:
+                required: true
+            EDD_PRODUCT_ID:
+                required: true
+            SLACK_ANNOUNCEMENT_WEBHOOK:
+                required: true
+
+jobs:
+    release:
+        name: Build & Release Plugin
+        runs-on: ubuntu-latest
+
+        steps:
+            -   uses: actions/checkout@v2
+
+            -   name: Install composer dependencies
+                uses: php-actions/composer@v2
+                with:
+                    dev: no
+
+            -   uses: actions/setup-node@v1
+                with:
+                    node-version: '12'
+
+            -   name: Install npm dependencies
+                run: |
+                    npm install -g npm@7
+                    npm ci
+                    npm run build
+
+            -   name: Generate plugin artifact
+                run: |
+                    rsync -rc --exclude-from="$GITHUB_WORKSPACE/.distignore" "${GITHUB_WORKSPACE}/" ${{ inputs.plugin_slug }}/ --delete --delete-excluded
+                    zip -r "${GITHUB_WORKSPACE}/release.zip" ${{ inputs.plugin_slug }}
+
+            -   name: Deploy plugin zip to GiveWP.com
+                uses: burnett01/rsync-deployments@4.1
+                with:
+                    switches: -avz --omit-dir-times --no-perms
+                    path: release.zip
+                    remote_path: ${{ secrets.GIVEWP_DOWNLOADS_PATH }}/${{ inputs.zipe_name }}.zip
+                    remote_host: ${{ secrets.WEBSITE_DEPLOY_HOST }}
+                    remote_user: ${{ secrets.WEBSITE_DEPLOY_USER }}
+                    remote_key: ${{ secrets.WEBSITE_DEPLOY_PRIVATE_KEY }}
+
+            -   name: Deploy plugin readme to GiveWP.com
+                uses: burnett01/rsync-deployments@4.1
+                with:
+                    switches: -avz --omit-dir-times --no-perms
+                    path: readme.txt
+                    remote_path: ${{ secrets.GIVEWP_DOWNLOADS_PATH }}/${{ inputs.plugin_slug }}/
+                    remote_host: ${{ secrets.WEBSITE_DEPLOY_HOST }}
+                    remote_user: ${{ secrets.WEBSITE_DEPLOY_USER }}
+                    remote_key: ${{ secrets.WEBSITE_DEPLOY_PRIVATE_KEY }}
+
+            -   name: Update release version on website
+                uses: appleboy/ssh-action@master
+                with:
+                    host: ${{ secrets.WEBSITE_DEPLOY_HOST }}
+                    username: ${{ secrets.WEBSITE_DEPLOY_USER }}
+                    key: ${{ secrets.WEBSITE_DEPLOY_PRIVATE_KEY }}
+                    script: |
+                        cd ${{ secrets.GIVEWP_DOWNLOADS_PATH }}
+                        wp post meta update ${{ secrets.EDD_PRODUCT_ID }} _edd_sl_version ${{ github.event.release.tag_name }}
+
+            -   name: Purge files from Cloudflare cache
+                uses: nathanvaughn/actions-cloudflare-purge@master
+                with:
+                    cf_auth: ${{ secrets.GIVEWP_CLOUDFLARE_TOKEN }}
+                    cf_zone: ${{ secrets.GIVEWP_CLOUDFLARE_ZONE }}
+                    urls: ${{ secrets.GIVEWP_DOWNLOADS_URI }}/${{ github.event.repository.name }}.zip ${{ secrets.GIVEWP_DOWNLOADS_URI }}/${{ github.event.repository.name }}/readme.txt
+
+            -   name: Upload release asset
+                uses: actions/upload-release-asset@v1
+                env:
+                    GITHUB_TOKEN: ${{ github.token }}
+                with:
+                    upload_url: ${{ github.event.release.upload_url }}
+                    asset_path: ${{ github.workspace }}/release.zip
+                    asset_name: ${{ inputs.zip_name }}.zip
+                    asset_content_type: application/zip
+
+            -   name: Slack Notification
+                uses: someimportantcompany/github-actions-slack-message@v1
+                with:
+                    webhook-url: ${{ secrets.SLACK_ANNOUNCEMENT_WEBHOOK }}
+                    text: "*${{ github.event.repository.name }} ${{ github.event.release.name }} has just been released! 🎉* \n\n Here's what's new: \n\n ${{ github.event.release.body }} \n\n <${{ github.event.release.html_url }}|Link to Release>"
