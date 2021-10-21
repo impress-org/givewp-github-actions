@@ -62,7 +62,7 @@ jobs:
                 with:
                     switches: -avz --omit-dir-times --no-perms
                     path: release.zip
-                    remote_path: ${{ secrets.GIVEWP_DOWNLOADS_PATH }}/${{ inputs.zipe_name }}.zip
+                    remote_path: ${{ secrets.GIVEWP_DOWNLOADS_PATH }}/${{ inputs.zip_name }}.zip
                     remote_host: ${{ secrets.WEBSITE_DEPLOY_HOST }}
                     remote_user: ${{ secrets.WEBSITE_DEPLOY_USER }}
                     remote_key: ${{ secrets.WEBSITE_DEPLOY_PRIVATE_KEY }}
