@@ -40,6 +40,7 @@ jobs:
             -   name: Install composer dependencies
                 uses: php-actions/composer@v2
                 with:
+                    php_version: 8.0
                     dev: no
 
             -   uses: actions/setup-node@v1
