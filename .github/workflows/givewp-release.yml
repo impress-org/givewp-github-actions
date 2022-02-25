@@ -56,8 +56,10 @@ jobs:
                 # In order to run this WordPress also needs to be installed
             -   name: Generate pot file
                 run: |
-                    composer exec "wp core download --path=/tmp/wordpress --version=latest --skip-content"
-                    composer exec "wp i18n make-pot ${{github.workspace}} ${{github.workspace}}/languages/{{ inputs.plugin_slug }}.pot --path=/tmp/wordpress"
+                    curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+                    chmod +x wp-cli.phar
+                    mv wp-cli.phar /usr/local/bin/wp
+                    wp i18n make-pot ${{github.workspace}} ${{github.workspace}}/languages/{{ inputs.plugin_slug }}.pot
 
             -   name: Generate plugin artifact
                 run: |
