@@ -53,13 +53,12 @@ jobs:
                     npm ci
                     npm run build
                     
-                # In order to run this WordPress also needs to be installed
             -   name: Generate pot file
                 run: |
                     curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
                     chmod +x wp-cli.phar
                     mv wp-cli.phar /usr/local/bin/wp
-                    wp i18n make-pot ${{github.workspace}} ${{github.workspace}}/languages/${{ inputs.plugin_slug }}.pot
+                    php -d xdebug.mode=off "$(which wp)" i18n make-pot ${{github.workspace}} ${{github.workspace}}/languages/${{ inputs.plugin_slug }}.pot
 
             -   name: Generate plugin artifact
                 run: |
