@@ -1,7 +1,7 @@
 name: Generate Plugin Zip
 
 on:
-    workflow_dispatch:
+    workflow_call:
 
 jobs:
     generate-zip:
