@@ -3,6 +3,16 @@ name: Release to WordPress.org
 on:
     workflow_call:
         inputs:
+            install_composer_packages:
+                description: 'Whether composer needs to be run as part of the build'
+                type: boolean
+                required: false
+                default: true
+            install_npm_packages:
+                description: 'Whether composer needs to be run as part of the build'
+                type: boolean
+                required: false
+                default: true
             wp_org_slug:
                 type: string
                 required: true
@@ -28,15 +38,18 @@ jobs:
 
             -   name: Install composer dependencies
                 uses: php-actions/composer@v6
+                if: ${{ inputs.install_composer_packages }}
                 with:
                     php_version: 7.4
                     dev: no
 
             -   uses: actions/setup-node@v1
+                if: ${{ inputs.install_npm_packages }}
                 with:
                     node-version: '12'
 
             -   name: Install npm dependencies
+                if: ${{ inputs.install_npm_packages }}
                 run: |
                     npm install -g npm@7
                     npm ci
