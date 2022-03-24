@@ -2,12 +2,19 @@ name: Generate Plugin Zip
 
 on:
     workflow_call:
+        inputs:
+            ref:
+                description: 'Git Commit Ref (branch, tag, or hash)'
+                required: true
+                type: string
 
 jobs:
     generate-zip:
         runs-on: ubuntu-latest
         steps:
             -   uses: actions/checkout@v3
+                with:
+                    ref: ${{ inputs.ref }}
 
             -   name: Install composer dependencies
                 uses: php-actions/composer@v6
