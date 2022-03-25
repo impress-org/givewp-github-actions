@@ -16,6 +16,9 @@ on:
             wp_org_slug:
                 type: string
                 required: true
+            text_domain:
+                type: string
+                required: true
             zip_name:
                 type: string
                 required: true
@@ -54,6 +57,13 @@ jobs:
                     npm install -g npm@7
                     npm ci
                     npm run build
+
+            -   name: Generate pot file
+                run: |
+                    curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+                    chmod +x wp-cli.phar
+                    mv wp-cli.phar /usr/local/bin/wp
+                    php -d xdebug.mode=off "$(which wp)" i18n make-pot ${{github.workspace}} ${{github.workspace}}/languages/${{ inputs.text_domain }}.pot
 
             -   name: WordPress Plugin Deploy
                 id: deploy
