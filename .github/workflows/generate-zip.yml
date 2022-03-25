@@ -7,6 +7,10 @@ on:
                 description: 'Git Commit Ref (branch, tag, or hash)'
                 required: true
                 type: string
+            plugin_slug:
+                description: 'Plugin Slug'
+                required: true
+                type: string
 
 jobs:
     generate-zip:
@@ -41,12 +45,12 @@ jobs:
 
             -   name: Generate plugin zip file
                 run: |
-                    rsync -rc --exclude-from="$GITHUB_WORKSPACE/.distignore" "${GITHUB_WORKSPACE}/" ${{ github.event.repository.name }}/ --delete --delete-excluded
-                    zip -r "${GITHUB_WORKSPACE}/release.zip" ${{ github.event.repository.name }}
+                    rsync -rc --exclude-from="$GITHUB_WORKSPACE/.distignore" "${GITHUB_WORKSPACE}/" ${{ inputs.plugin_slug }}/ --delete --delete-excluded
+                    zip -r "${GITHUB_WORKSPACE}/release.zip" ${{ inputs.plugin_slug }}
 
             -   name: Upload plugin artifact
-                uses: actions/upload-artifact@v2
+                uses: actions/upload-artifact@v3
                 with:
-                    name: ${{ github.event.repository.name }}.zip
+                    name: ${{ inputs.plugin_slug }}.zip
                     path: release.zip
                     mime-type: application/zip
