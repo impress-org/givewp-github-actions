@@ -44,12 +44,10 @@ jobs:
                     php -d xdebug.mode=off "$(which wp)" i18n make-pot ${{github.workspace}} ${{github.workspace}}/languages/${{ inputs.plugin_slug }}.pot
 
             -   name: Generate plugin zip file
-                run: |
-                    rsync -rc --exclude-from="$GITHUB_WORKSPACE/.distignore" "${GITHUB_WORKSPACE}/" ${{ inputs.plugin_slug }}/ --delete --delete-excluded
-                    zip -r "${GITHUB_WORKSPACE}/release.zip" ${{ inputs.plugin_slug }}
+                run: rsync -rc --exclude-from="$GITHUB_WORKSPACE/.distignore" "${GITHUB_WORKSPACE}/" ${{ inputs.plugin_slug }}/ --delete --delete-excluded
 
             -   name: Upload plugin artifact
                 uses: actions/upload-artifact@v3
                 with:
                     name: ${{ inputs.plugin_slug }}
-                    path: release.zip
+                    path: ${{ inputs.plugin_slug }}
