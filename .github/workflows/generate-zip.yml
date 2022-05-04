@@ -1,22 +1,24 @@
-name: Build Plugin Pre-Release
+name: Generate Plugin Zip
 
 on:
     workflow_call:
         inputs:
+            ref:
+                description: 'Git Commit Ref (branch, tag, or hash)'
+                required: true
+                type: string
             plugin_slug:
-                type: string
+                description: 'Plugin Slug'
                 required: true
-            zip_name:
                 type: string
-                required: true
 
 jobs:
-    build:
-        name: Build Plugin Artifact
-        runs-on: ubuntu-18.04
-
+    generate-zip:
+        runs-on: ubuntu-latest
         steps:
-            -   uses: actions/checkout@v2
+            -   uses: actions/checkout@v3
+                with:
+                    ref: ${{ inputs.ref }}
 
             -   name: Install composer dependencies
                 uses: php-actions/composer@v6
@@ -34,6 +36,9 @@ jobs:
                     npm ci
                     npm run dev
 
+            -   name: Build assets for production
+                run: npm run build
+
             -   name: Generate pot file
                 run: |
                     curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
@@ -41,20 +46,11 @@ jobs:
                     mv wp-cli.phar /usr/local/bin/wp
                     php -d xdebug.mode=off "$(which wp)" i18n make-pot ${{github.workspace}} ${{github.workspace}}/languages/${{ inputs.plugin_slug }}.pot --exclude="$(cat .distignore | tr "\n" "," | sed 's/,$/ /' | tr " " "\n"),src/*.js,src/**/*.js,*.js.map,blocks/**/*.js"
 
-            -   name: Build assets for production
-                run: npm run build
+            -   name: Generate plugin zip file
+                run: rsync -rc --exclude-from="$GITHUB_WORKSPACE/.distignore" "${GITHUB_WORKSPACE}/" ${{ inputs.plugin_slug }}/ --delete --delete-excluded
 
-            -   name: Generate plugin artifact
-                run: |
-                    rsync -rc --exclude-from="$GITHUB_WORKSPACE/.distignore" "${GITHUB_WORKSPACE}/" ${{ inputs.plugin_slug }}/ --delete --delete-excluded
-                    zip -r "${GITHUB_WORKSPACE}/release.zip" ${{ inputs.plugin_slug }}
-
-            -   name: Upload release asset
-                uses: actions/upload-release-asset@v1
-                env:
-                    GITHUB_TOKEN: ${{ github.token }}
+            -   name: Upload plugin artifact
+                uses: actions/upload-artifact@v3
                 with:
-                    upload_url: ${{ github.event.release.upload_url }}
-                    asset_path: ${{github.workspace}}/release.zip
-                    asset_name: ${{ inputs.zip_name }}.zip
-                    asset_content_type: application/zip
+                    name: ${{ inputs.plugin_slug }}
+                    path: ${{ inputs.plugin_slug }}

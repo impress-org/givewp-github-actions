@@ -1,0 +1,94 @@
+name: Release to WordPress.org
+
+on:
+    workflow_call:
+        inputs:
+            install_composer_packages:
+                description: 'Whether composer needs to be run as part of the build'
+                type: boolean
+                required: false
+                default: true
+            install_npm_packages:
+                description: 'Whether composer needs to be run as part of the build'
+                type: boolean
+                required: false
+                default: true
+            wp_org_slug:
+                type: string
+                required: true
+            text_domain:
+                type: string
+                required: true
+            zip_name:
+                type: string
+                required: true
+        secrets:
+            SVN_USERNAME:
+                required: true
+            SVN_PASSWORD:
+                required: true
+            SLACK_ANNOUNCEMENT_WEBHOOK:
+                required: true
+
+jobs:
+    release:
+        name: Build & Release to WordPress.org
+        runs-on: ubuntu-18.04
+
+        steps:
+            -   name: Checkout code
+                uses: actions/checkout@v2
+
+            -   name: Install composer dependencies
+                uses: php-actions/composer@v6
+                if: ${{ inputs.install_composer_packages }}
+                with:
+                    php_version: 7.4
+                    dev: no
+
+            -   uses: actions/setup-node@v1
+                if: ${{ inputs.install_npm_packages }}
+                with:
+                    node-version: '12'
+
+            -   name: Install npm dependencies & build for translation
+                run: |
+                    npm install -g npm@7
+                    npm ci
+                    npm run dev
+
+            -   name: Generate pot file
+                run: |
+                    curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+                    chmod +x wp-cli.phar
+                    mv wp-cli.phar /usr/local/bin/wp
+                    php -d xdebug.mode=off "$(which wp)" i18n make-pot ${{github.workspace}} ${{github.workspace}}/languages/${{ inputs.plugin_slug }}.pot --exclude="$(cat .distignore | tr "\n" "," | sed 's/,$/ /' | tr " " "\n"),src/*.js,src/**/*.js,*.js.map,blocks/**/*.js"
+
+            -   name: Build assets for production
+                run: npm run build
+
+            -   name: WordPress Plugin Deploy
+                id: deploy
+                uses: 10up/action-wordpress-plugin-deploy@stable
+                with:
+                    generate-zip: true
+                env:
+                    SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+                    SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+                    SLUG: ${{ inputs.wp_org_slug }}
+
+            -   name: Upload release asset
+                uses: actions/upload-release-asset@v1
+                env:
+                    GITHUB_TOKEN: ${{ github.token }}
+                with:
+                    upload_url: ${{ github.event.release.upload_url }}
+                    asset_path: ${{ github.workspace }}/${{ inputs.wp_org_slug }}.zip
+                    asset_name: ${{ inputs.zip_name }}.zip
+                    asset_content_type: application/zip
+
+            -   name: Slack Notification
+                uses: someimportantcompany/github-actions-slack-message@v1
+                with:
+                    webhook-url: ${{ secrets.SLACK_ANNOUNCEMENT_WEBHOOK }}
+                    text: "*${{ github.event.repository.name }} ${{ github.event.release.name }} has just been released! 🎉* \n\n Here's what's new: \n\n ${{ github.event.release.body }} \n\n <${{ github.event.release.html_url }}|Link to Release>"
