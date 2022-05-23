@@ -11,6 +11,11 @@ on:
                 description: 'Plugin Slug'
                 required: true
                 type: string
+            install_composer_packages:
+                description: 'Whether composer needs to be run as part of the build'
+                type: boolean
+                required: false
+                default: true
 
 jobs:
     generate-zip:
@@ -22,6 +27,7 @@ jobs:
 
             -   name: Install composer dependencies
                 uses: php-actions/composer@v6
+                if: ${{ inputs.install_composer_packages }}
                 with:
                     php_version: 7.4
                     dev: no
