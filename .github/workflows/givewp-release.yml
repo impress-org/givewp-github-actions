@@ -98,12 +98,12 @@ jobs:
                         cd ${{ secrets.GIVEWP_DOWNLOADS_PATH }}
                         wp post meta update ${{ secrets.EDD_PRODUCT_ID }} _edd_sl_version ${{ github.event.release.tag_name }}
 
-            -   name: Purge files from Cloudflare cache
-                uses: nathanvaughn/actions-cloudflare-purge@master
-                with:
-                    cf_auth: ${{ secrets.GIVEWP_CLOUDFLARE_TOKEN }}
-                    cf_zone: ${{ secrets.GIVEWP_CLOUDFLARE_ZONE }}
-                    urls: ${{ secrets.GIVEWP_DOWNLOADS_URI }}/${{ github.event.repository.name }}.zip ${{ secrets.GIVEWP_DOWNLOADS_URI }}/${{ github.event.repository.name }}/readme.txt
+#            -   name: Purge files from Cloudflare cache
+#                uses: nathanvaughn/actions-cloudflare-purge@master
+#                with:
+#                    cf_auth: ${{ secrets.GIVEWP_CLOUDFLARE_TOKEN }}
+#                    cf_zone: ${{ secrets.GIVEWP_CLOUDFLARE_ZONE }}
+#                    urls: ${{ secrets.GIVEWP_DOWNLOADS_URI }}/${{ github.event.repository.name }}.zip ${{ secrets.GIVEWP_DOWNLOADS_URI }}/${{ github.event.repository.name }}/readme.txt
 
             -   name: Upload release asset
                 uses: actions/upload-release-asset@v1
