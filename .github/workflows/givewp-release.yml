@@ -9,6 +9,11 @@ on:
             zip_name:
                 type: string
                 required: true
+            install_composer_packages:
+                description: 'Whether composer needs to be run as part of the build'
+                type: boolean
+                required: false
+                default: true
         secrets:
             GIVEWP_DOWNLOADS_PATH:
                 required: true
@@ -39,6 +44,7 @@ jobs:
 
             -   name: Install composer dependencies
                 uses: php-actions/composer@v6
+                if: ${{ inputs.install_composer_packages }}
                 with:
                     php_version: 7.4
                     dev: no
