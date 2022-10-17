@@ -19,3 +19,4 @@ jobs:
                   days-before-issue-close: 14 # 2 weeks accounts for cool-down
                   days-before-pr-close: -1 # Never close pull requests
                   debug-only: true # Dry-run. No GitHub API calls that can alter your issues and pull requests will happen.
+                  exempt-issue-labels: keep-fresh
