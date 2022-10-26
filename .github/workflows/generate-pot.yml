@@ -1,4 +1,4 @@
-name: Generate Pot Zip
+name: Generate POT file
 
 on:
     workflow_call:
