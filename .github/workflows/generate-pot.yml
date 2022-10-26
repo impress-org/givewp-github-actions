@@ -1,0 +1,79 @@
+name: Generate Pot Zip
+
+on:
+    workflow_call:
+        inputs:
+            ref:
+                description: 'Git Commit Ref (branch, tag, or hash)'
+                required: true
+                type: string
+            push_to_translations_site:
+                description: 'Push to Stellar Translations website?'
+                required: true
+                type: boolean
+                default: true
+
+            install_npm_packages:
+                description: 'Whether npm needs to be run as part of the build'
+                type: boolean
+                required: false
+                default: true
+jobs:
+    generate-zip:
+        runs-on: ubuntu-latest
+        steps:
+            -   uses: actions/checkout@v3
+                with:
+                    ref: ${{ inputs.ref }}
+
+            -   name: Install composer dependencies
+                uses: php-actions/composer@v6
+                if: ${{ inputs.install_composer_packages }}
+                with:
+                    php_version: 7.4
+                    dev: no
+
+            -   uses: actions/setup-node@v1
+                with:
+                    node-version: '12'
+
+            -   name: Install npm dependencies & build for translation
+                if: ${{ inputs.install_npm_packages }}
+                run: |
+                    npm install -g npm@7
+                    npm ci
+                    npm run dev
+
+            -   name: Generate pot file
+                run: |
+                    curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+                    chmod +x wp-cli.phar
+                    mv wp-cli.phar /usr/local/bin/wp
+                    php -d xdebug.mode=off "$(which wp)" i18n make-pot ${{github.workspace}} ${{github.workspace}}/languages/${{ inputs.plugin_slug }}.pot --exclude="$(cat .distignore | tr "\n" "," | sed 's/,$/ /' | tr " " "\n"),src/*.js,src/**/*.js,blocks/**/*.js"
+
+            -   name: Deploy POT file to translations.stellarwp.com
+                uses: burnett01/rsync-deployments@4.1
+                with:
+                    switches: -avz --omit-dir-times --no-perms
+                    path: ${{ inputs.plugin_slug }}.pot
+                    remote_path: /chroot/home/a3a501e6/c101d264d6.nxcli.io/html/wp-content/pot-files/${{ inputs.plugin_slug }}/
+                    remote_host: ${{ secrets.TRANSLATIONS_DEPLOY_HOST }}
+                    remote_user: ${{ secrets.TRANSLATIONS_DEPLOY_USER }}
+                    remote_key: ${{ secrets.TRANSLATIONS_DEPLOY_PRIVATE_KEY }}
+
+            -   name: SSH to Translations StellarWP Website
+                if: ${{ inputs.push_to_translations_site }}
+                uses: appleboy/ssh-action@master
+                with:
+                    host: ${{ secrets.TRANSLATIONS_DEPLOY_HOST }}
+                    username: ${{ secrets.TRANSLATIONS_DEPLOY_USER }}
+                    key: ${{ secrets.TRANSLATIONS_DEPLOY_PRIVATE_KEY }}
+
+            -   name: Generate plugin zip file
+                run: rsync -rc --exclude-from="$GITHUB_WORKSPACE/.distignore" "${GITHUB_WORKSPACE}/" ${{ inputs.plugin_slug }}/ --delete --delete-excluded
+
+            -   name: Upload plugin artifact
+                uses: actions/upload-artifact@v3
+                with:
+                    name: ${{ inputs.plugin_slug }}
+                    path: ${{ inputs.plugin_slug }}
