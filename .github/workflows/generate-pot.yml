@@ -1,23 +1,23 @@
 name: Generate POT file
 
 on:
-    workflow_call:
-        inputs:
-            ref:
-                description: 'Git Commit Ref (branch, tag, or hash)'
-                required: true
-                type: string
-            push_to_translations_site:
-                description: 'Push to Stellar Translations website?'
-                required: true
-                type: boolean
-                default: true
-
-            install_npm_packages:
-                description: 'Whether npm needs to be run as part of the build'
-                type: boolean
-                required: false
-                default: true
+    workflow_dispatch: # Allows you to run this workflow manually from the Actions tab
+#    workflow_call:
+#        inputs:
+#            ref:
+#                description: 'Git Commit Ref (branch, tag, or hash)'
+#                required: true
+#                type: string
+#            push_to_translations_site:
+#                description: 'Push to Stellar Translations website?'
+#                required: true
+#                type: boolean
+#                default: true
+#            install_npm_packages:
+#                description: 'Whether npm needs to be run as part of the build'
+#                type: boolean
+#                required: false
+#                default: true
 jobs:
     generate-zip:
         runs-on: ubuntu-latest
