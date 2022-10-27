@@ -62,7 +62,7 @@ jobs:
                 uses: burnett01/rsync-deployments@4.1
                 with:
                     switches: -avz --omit-dir-times --no-perms
-                    path: languages/${{ inputs.plugin_slug }}.pot
+                    path: ${{github.workspace}}/languages/${{ inputs.plugin_slug }}.pot
                     remote_path: ${{ secrets.TRANSLATIONS_DEPLOY_POT_LOCATION }}${{ inputs.plugin_slug }}/
                     remote_host: ${{ secrets.TRANSLATIONS_DEPLOY_HOST }}
                     remote_user: ${{ secrets.TRANSLATIONS_DEPLOY_USER }}
