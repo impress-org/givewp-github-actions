@@ -50,19 +50,21 @@ jobs:
                     npm run dev
 
     generate-pot:
-            uses: impress-org/givewp-github-actions/.github/workflows/generate-pot.yml@master
-            with:
-                ref: ${{ inputs.ref }}
-                plugin_slug: ${{ inputs.plugin_slug }}
+        uses: impress-org/givewp-github-actions/.github/workflows/generate-pot.yml@master
+        with:
+            ref: ${{ inputs.ref }}
+            plugin_slug: ${{ inputs.plugin_slug }}
 
     sync-translations:
         runs-on: ubuntu-latest
+
         steps:
             -   name: Deploy POT file to translations.stellarwp.com
                 uses: burnett01/rsync-deployments@4.1
                 with:
+                    plugin_slug: ${{ inputs.plugin_slug }}
                     switches: -avz --omit-dir-times --no-perms
-                    path: ${{github.workspace}}/languages/${{ inputs.plugin_slug }}.pot
+                    path: languages/${{ inputs.plugin_slug }}.pot
                     remote_path: ${{ secrets.TRANSLATIONS_DEPLOY_POT_LOCATION }}${{ inputs.plugin_slug }}/
                     remote_host: ${{ secrets.TRANSLATIONS_DEPLOY_HOST }}
                     remote_user: ${{ secrets.TRANSLATIONS_DEPLOY_USER }}
