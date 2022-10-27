@@ -1,4 +1,4 @@
-name: Generate POT file
+name: 🔁 Sync Translations
 
 on:
     workflow_dispatch: # Allows you to run this workflow manually from the Actions tab
@@ -23,11 +23,6 @@ on:
                 description: 'Plugin Slug'
                 required: true
                 type: string
-#            push_to_translations_site:
-#                description: 'Push to Stellar Translations website?'
-#                required: true
-#                type: boolean
-#                default: true
 
 jobs:
     generate-zip:
