@@ -1,0 +1,45 @@
+name: Generate Plugin Zip
+
+on:
+    workflow_call:
+        inputs:
+            ref:
+                description: 'Git Commit Ref (branch, tag, or hash)'
+                required: true
+                type: string
+                default: 'master'
+            plugin_slug:
+                description: 'Plugin Slug'
+                required: true
+                type: string
+
+jobs:
+    generate-zip:
+        runs-on: ubuntu-latest
+        steps:
+            -   uses: actions/checkout@v3
+                with:
+                    ref: ${{ inputs.ref }}
+
+            -   name: Install composer dependencies
+                uses: php-actions/composer@v6
+                with:
+                    php_version: 7.4
+                    dev: no
+
+            -   uses: actions/setup-node@v1
+                with:
+                    node-version: '12'
+
+            -   name: Install npm dependencies & build for translation
+                run: |
+                    npm install -g npm@7
+                    npm ci
+                    npm run dev
+
+            -   name: Generate pot file
+                run: |
+                    curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+                    chmod +x wp-cli.phar
+                    mv wp-cli.phar /usr/local/bin/wp
+                    php -d xdebug.mode=off "$(which wp)" i18n make-pot ${{github.workspace}} ${{github.workspace}}/languages/${{ inputs.plugin_slug }}.pot --exclude="$(cat .distignore | tr "\n" "," | sed 's/,$/ /' | tr " " "\n"),src/*.js,src/**/*.js,blocks/**/*.js"

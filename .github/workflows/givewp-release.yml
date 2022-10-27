@@ -1,4 +1,4 @@
-name: 🚀 Release to givewp.com
+name: 🚀 Release to GiveWP.com
 
 on:
     workflow_call:
