@@ -50,7 +50,7 @@ jobs:
                     npm run dev
 
             -   name: Generate pot file
-                uses:
+                uses: impress-org/givewp-github-actions/.github/workflows/generate-pot.yml@master
 
             -   name: Deploy POT file to translations.stellarwp.com
                 uses: burnett01/rsync-deployments@4.1
