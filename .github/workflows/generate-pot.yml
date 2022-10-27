@@ -2,22 +2,23 @@ name: Generate POT file
 
 on:
     workflow_dispatch: # Allows you to run this workflow manually from the Actions tab
-#    workflow_call:
-#        inputs:
-#            ref:
-#                description: 'Git Commit Ref (branch, tag, or hash)'
-#                required: true
-#                type: string
+        inputs:
+            plugin_slug:
+                description: 'Plugin Slug'
+                required: true
+                type: string
+    workflow_call:
+        inputs:
+            plugin_slug:
+                description: 'Plugin Slug'
+                required: true
+                type: string
 #            push_to_translations_site:
 #                description: 'Push to Stellar Translations website?'
 #                required: true
 #                type: boolean
 #                default: true
-#            install_npm_packages:
-#                description: 'Whether npm needs to be run as part of the build'
-#                type: boolean
-#                required: false
-#                default: true
+
 jobs:
     generate-zip:
         runs-on: ubuntu-latest
@@ -38,7 +39,6 @@ jobs:
                     node-version: '12'
 
             -   name: Install npm dependencies & build for translation
-                if: ${{ inputs.install_npm_packages }}
                 run: |
                     npm install -g npm@7
                     npm ci
@@ -55,25 +55,19 @@ jobs:
                 uses: burnett01/rsync-deployments@4.1
                 with:
                     switches: -avz --omit-dir-times --no-perms
-                    path: ${{ inputs.plugin_slug }}.pot
-                    remote_path: /chroot/home/a3a501e6/c101d264d6.nxcli.io/html/wp-content/pot-files/${{ inputs.plugin_slug }}/
+                    path: languages/${{ inputs.plugin_slug }}.pot
+                    remote_path: ${{ secrets.TRANSLATIONS_DEPLOY_POT_LOCATION }}${{ inputs.plugin_slug }}/
                     remote_host: ${{ secrets.TRANSLATIONS_DEPLOY_HOST }}
                     remote_user: ${{ secrets.TRANSLATIONS_DEPLOY_USER }}
-                    remote_key: ${{ secrets.TRANSLATIONS_DEPLOY_PRIVATE_KEY }}
+                    remote_key: ${{ secrets.TRANSLATIONS_DEPLOY_SSH_KEY }}
 
             -   name: SSH to Translations StellarWP Website
-                if: ${{ inputs.push_to_translations_site }}
                 uses: appleboy/ssh-action@master
                 with:
                     host: ${{ secrets.TRANSLATIONS_DEPLOY_HOST }}
                     username: ${{ secrets.TRANSLATIONS_DEPLOY_USER }}
-                    key: ${{ secrets.TRANSLATIONS_DEPLOY_PRIVATE_KEY }}
-
-            -   name: Generate plugin zip file
-                run: rsync -rc --exclude-from="$GITHUB_WORKSPACE/.distignore" "${GITHUB_WORKSPACE}/" ${{ inputs.plugin_slug }}/ --delete --delete-excluded
-
-            -   name: Upload plugin artifact
-                uses: actions/upload-artifact@v3
-                with:
-                    name: ${{ inputs.plugin_slug }}
-                    path: ${{ inputs.plugin_slug }}
+                    key: ${{ secrets.TRANSLATIONS_DEPLOY_SSH_KEY }}
+                    script: |
+                        pwd
+                        cd translations.stellarwp.com/html/
+                        wp glotpress import-originals give/${{ inputs.plugin_slug }} ${{ secrets.TRANSLATIONS_DEPLOY_POT_LOCATION }}${{ inputs.plugin_slug }}/${{ inputs.plugin_slug }}.pot
