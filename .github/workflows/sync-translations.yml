@@ -25,7 +25,7 @@ on:
                 type: string
 
 jobs:
-    sync-translations:
+    setup-environment:
         runs-on: ubuntu-latest
         steps:
             -   uses: actions/checkout@v3
@@ -49,9 +49,12 @@ jobs:
                     npm ci
                     npm run dev
 
-            -   uses: impress-org/givewp-github-actions/.github/workflows/generate-pot.yml@master
+    generate-pot:
+            uses: impress-org/givewp-github-actions/.github/workflows/generate-pot.yml@master
 
-
+    sync-translations:
+        runs-on: ubuntu-latest
+        steps:
             -   name: Deploy POT file to translations.stellarwp.com
                 uses: burnett01/rsync-deployments@4.1
                 with:

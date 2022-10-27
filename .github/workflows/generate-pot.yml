@@ -1,4 +1,4 @@
-name: Generate Plugin Zip
+name: Generate POT File
 
 on:
     workflow_call:
@@ -37,7 +37,7 @@ jobs:
                     npm ci
                     npm run dev
 
-            -   name: Generate pot file
+            -   name: Generate POT file
                 run: |
                     curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
                     chmod +x wp-cli.phar
