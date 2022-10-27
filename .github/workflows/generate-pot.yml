@@ -3,6 +3,11 @@ name: Generate POT file
 on:
     workflow_dispatch: # Allows you to run this workflow manually from the Actions tab
         inputs:
+            ref:
+                description: 'Git Commit Ref (branch, tag, or hash)'
+                required: true
+                type: string
+                default: 'master'
             plugin_slug:
                 description: 'Plugin Slug'
                 required: true
