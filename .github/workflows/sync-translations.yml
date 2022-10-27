@@ -44,7 +44,7 @@ jobs:
                 with:
                     node-version: '12'
 
-            -   uses: impress-org/givewp-github-actions/.github/actions/generate-pot.yml@master
+            -   uses: ./.github/actions/generate-pot.yml@master
                 with:
                     ref: ${{ inputs.ref }}
                     plugin_slug: ${{ inputs.plugin_slug }}
