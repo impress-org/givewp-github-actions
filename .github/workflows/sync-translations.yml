@@ -51,6 +51,9 @@ jobs:
 
     generate-pot:
             uses: impress-org/givewp-github-actions/.github/workflows/generate-pot.yml@master
+            with:
+                ref: ${{ inputs.ref }}
+                plugin_slug: ${{ inputs.plugin_slug }}
 
     sync-translations:
         runs-on: ubuntu-latest
