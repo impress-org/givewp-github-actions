@@ -57,12 +57,10 @@ jobs:
 
     sync-translations:
         runs-on: ubuntu-latest
-
         steps:
             -   name: Deploy POT file to translations.stellarwp.com
                 uses: burnett01/rsync-deployments@4.1
                 with:
-                    plugin_slug: ${{ inputs.plugin_slug }}
                     switches: -avz --omit-dir-times --no-perms
                     path: languages/${{ inputs.plugin_slug }}.pot
                     remote_path: ${{ secrets.TRANSLATIONS_DEPLOY_POT_LOCATION }}${{ inputs.plugin_slug }}/
