@@ -50,7 +50,7 @@ jobs:
                     npm ci
                     npm run dev
 
-            -   uses: /.github/actions/generate-pot.yml@master
+            -   uses: ./.github/actions/generate-pot.yml@master
                 with:
                     ref: ${{ inputs.ref }}
                     plugin_slug: ${{ inputs.plugin_slug }}
