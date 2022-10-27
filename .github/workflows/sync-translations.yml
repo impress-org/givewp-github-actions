@@ -25,7 +25,7 @@ on:
                 type: string
 
 jobs:
-    generate-zip:
+    sync-translations:
         runs-on: ubuntu-latest
         steps:
             -   uses: actions/checkout@v3
@@ -49,8 +49,8 @@ jobs:
                     npm ci
                     npm run dev
 
-            -   name: Generate pot file
-                uses: impress-org/givewp-github-actions/.github/workflows/generate-pot.yml@master
+            -   uses: impress-org/givewp-github-actions/.github/workflows/generate-pot.yml@master
+
 
             -   name: Deploy POT file to translations.stellarwp.com
                 uses: burnett01/rsync-deployments@4.1
