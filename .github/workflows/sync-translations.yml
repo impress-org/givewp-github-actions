@@ -44,13 +44,7 @@ jobs:
                 with:
                     node-version: '12'
 
-            -   name: Install npm dependencies & build for translation
-                run: |
-                    npm install -g npm@7
-                    npm ci
-                    npm run dev
-
-            -   uses: ./.github/actions/generate-pot.yml@master
+            -   uses: impress-org/givewp-github-actions/.github/actions/generate-pot.yml@master
                 with:
                     ref: ${{ inputs.ref }}
                     plugin_slug: ${{ inputs.plugin_slug }}
