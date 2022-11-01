@@ -113,7 +113,7 @@ jobs:
                     bash tests/includes/bin/install.sh wordpress_develop_test root ${{ env.mysql_pass }} 127.0.0.1:${{ env.mysql_port }} ${{ matrix.wordpress }}
 
             -   name: Install composer dependencies for Addon
-                working-directory: ${{ inputs.plugin_slug }}
+                working-directory: ./${{ inputs.addon_slug }}
                 run: composer install --no-progress --no-interaction
 
             -   name: Setup Node
@@ -122,13 +122,13 @@ jobs:
                     node-version: 16
 
             -   name: Run npm build for addon
-                working-directory: ${{ inputs.addon_slug }}
+                working-directory: ./${{ inputs.addon_slug }}
                 run: |
                     npm ci
                     npm run dev
 
             -   name: Run Addon Tests Against GiveWP
-                working-directory: ${{ inputs.addon_slug }}
+                working-directory: ./${{ inputs.addon_slug }}
                 run: php -d memory_limit=-1 vendor/bin/phpunit
                 env:
                     DB_PORT: ${{ env.mysql_port }}
