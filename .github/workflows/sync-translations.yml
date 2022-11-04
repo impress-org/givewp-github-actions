@@ -46,8 +46,8 @@ jobs:
 
             -   uses: impress-org/givewp-github-actions/.github/actions/generate-pot-file@master
                 with:
-                    ref: ${{ inputs.ref }}
-                    plugin_slug: ${{ inputs.plugin_slug }}
+                    plugin-path: ${{ github.workspace }}
+                    pot-path: languages/${{ inputs.plugin_slug }}.pot
 
             -   name: Deploy POT file to translations.stellarwp.com
                 uses: burnett01/rsync-deployments@4.1
