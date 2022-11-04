@@ -44,7 +44,7 @@ jobs:
                 with:
                     node-version: '12'
 
-            -   uses: ./.github/actions/generate-pot
+            -   uses: ./.github/actions/generate-pot-file
                 with:
                     ref: ${{ inputs.ref }}
                     plugin_slug: ${{ inputs.plugin_slug }}
