@@ -1,4 +1,5 @@
 name: 🪴 Generate POT File
+description: Generate a POT file from the plugin source code
 
 inputs:
     pot-path: # id of input
@@ -9,11 +10,14 @@ runs:
     using: "composite"
     steps:
         -   name: Install npm dependencies & build for translation
+            shell: bash
             run: |
                 npm install -g npm@7
                 npm ci
                 npm run dev
+
         -   name: Generate POT file
+            shell: bash
             run: |
                 curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
                 chmod +x wp-cli.phar
