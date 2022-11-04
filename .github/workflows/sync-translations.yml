@@ -44,7 +44,7 @@ jobs:
                 with:
                     node-version: '12'
 
-            -   uses: ./.github/actions/generate-pot-file
+            -   uses: impress-org/givewp-github-actions/.github/actions/generate-pot-file@master
                 with:
                     ref: ${{ inputs.ref }}
                     plugin_slug: ${{ inputs.plugin_slug }}
