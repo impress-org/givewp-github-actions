@@ -18,6 +18,11 @@ on:
                 description: 'Addon Slug'
                 required: true
                 type: string
+            givewp_branch:
+                description: 'GiveWP Branch'
+                required: false
+                type: string
+                default: master
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
@@ -65,11 +70,11 @@ jobs:
                 with:
                     path: ${{ inputs.addon_slug }}
 
-            -   name: Check out GiveWP "master" branch
+            -   name: Check out GiveWP ${{ inputs.givewp_branch }} branch
                 uses: actions/checkout@v3
                 with:
                     repository: impress-org/givewp
-                    ref: master
+                    ref: ${{ inputs.givewp_branch }}
                     path: 'give'
 
             -   name: Cache dependencies
