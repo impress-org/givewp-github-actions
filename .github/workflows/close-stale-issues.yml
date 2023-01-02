@@ -11,7 +11,7 @@ jobs:
         steps:
             - uses: actions/stale@v5
               with:
-                  stale-issue-message: 'This issue is stale because it has been open 45 days with no activity. Remove stale label or comment or this will be closed in 14 additional days.'
+                  stale-issue-message: 'This issue is stale because it has been open 45 days with no activity. Remove stale label or comment or this will be closed in 14 additional days. Note, if this Issue is reporting a bug, please reach out to our support at https://givewp.com/support. If this is a feature request, please see our feedback board at feedback.givewp.com — that’s the best place to make feature requests, unless you’re providing a PR.'
                   stale-pr-message: 'This PR is stale because it has been open 45 days with no activity. Stale PRs will NOT be automatically closed.'
                   close-issue-message: 'This issue was closed because it has been stalled for an additional 14 days with no activity.'
                   days-before-issue-stale: 45 # ~6 weeks accounts for cycle length
