@@ -31,7 +31,7 @@ jobs:
             -   name: Install composer dependencies
                 run: composer install --no-progress --no-interaction
 
-            -   name: Set up PHP for build
+            -   name: Set up PHP for static analysis
                 uses: shivammathur/setup-php@v2
                 with:
                     php-version: ${{ matrix.php }}
