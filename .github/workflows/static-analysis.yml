@@ -44,8 +44,5 @@ jobs:
             -   name: Dump autoloader for new PHP version
                 run: composer dump-autoload
 
-            -   name: Setup tmate session
-                uses: mxschmitt/action-tmate@v3
-
             -   name: Analyse
                 run: php -d memory_limit=-1 vendor/bin/phpstan analyse -c phpstan.neon
