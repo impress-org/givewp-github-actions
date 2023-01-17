@@ -116,6 +116,10 @@ jobs:
                 run: |
                     composer install --no-progress --no-interaction
                     bash tests/includes/bin/install.sh wordpress_develop_test root ${{ env.mysql_pass }} 127.0.0.1:${{ env.mysql_port }} ${{ matrix.wordpress }}
+                    
+            -   name: Reload Composer autoload
+                working-directory: './give'
+                run: composer dump-autoload
 
             -   name: Install composer dependencies for Addon
                 working-directory: ./${{ inputs.addon_slug }}
