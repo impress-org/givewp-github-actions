@@ -54,7 +54,7 @@ jobs:
                 with:
                     switches: -avz --omit-dir-times --no-perms
                     path: languages/${{ inputs.plugin_slug }}.pot
-                    remote_path: ${{ secrets.TRANSLATIONS_DEPLOY_POT_LOCATION }}${{ inputs.plugin_slug }}/
+                    remote_path: ${{ secrets.TRANSLATIONS_DEPLOY_POT_LOCATION }}givewp/
                     remote_host: ${{ secrets.TRANSLATIONS_DEPLOY_HOST }}
                     remote_user: ${{ secrets.TRANSLATIONS_DEPLOY_USER }}
                     remote_key: ${{ secrets.TRANSLATIONS_DEPLOY_SSH_KEY }}
@@ -68,4 +68,4 @@ jobs:
                     script: |
                         pwd
                         cd translations.stellarwp.com/html/
-                        wp glotpress import-originals give/${{ inputs.plugin_slug }} ${{ secrets.TRANSLATIONS_DEPLOY_POT_LOCATION }}${{ inputs.plugin_slug }}/${{ inputs.plugin_slug }}.pot
+                        wp glotpress import-originals givewp/${{ inputs.plugin_slug }} ${{ secrets.TRANSLATIONS_DEPLOY_POT_LOCATION }}givewp/${{ inputs.plugin_slug }}.pot
