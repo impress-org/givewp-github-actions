@@ -29,7 +29,7 @@ jobs:
     # This workflow contains a single job called "test"
     test:
         # The type of runner that the job will run on
-        runs-on: ubuntu-18.04
+        runs-on: ubuntu-latest
         strategy:
             matrix:
                 php: [ 7.0, 7.4, 8.0 ]
@@ -116,14 +116,14 @@ jobs:
                 run: |
                     composer install --no-progress --no-interaction
                     bash tests/includes/bin/install.sh wordpress_develop_test root ${{ env.mysql_pass }} 127.0.0.1:${{ env.mysql_port }} ${{ matrix.wordpress }}
-                    
+
             -   name: Set Up PHP for testing
                 uses: shivammathur/setup-php@v2
                 with:
                     php-version: ${{ matrix.php }}
                     extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, mysql, mysqli, pdo_mysql, bcmath, soap, intl, gd, exif, iconv, imagick, fileinfo
                     coverage: none
-                    
+
             -   name: Reload Composer autoload
                 working-directory: './give'
                 run: composer dump-autoload
