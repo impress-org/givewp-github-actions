@@ -58,6 +58,8 @@ jobs:
                     npm ci
                     npm run build
 
+            -   uses: impress-org/givewp-github-actions/.github/actions/generate-changelog@master
+
             -   name: WordPress Plugin Deploy
                 id: deploy
                 uses: 10up/action-wordpress-plugin-deploy@stable
