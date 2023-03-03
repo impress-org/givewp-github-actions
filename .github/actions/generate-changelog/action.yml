@@ -1,0 +1,17 @@
+name: Generate Changelog from readme
+description: Generate a changelog from the readme.txt file
+
+inputs:
+    readme_path:
+        description: 'The path to the readme.txt file'
+        default: 'readme.txt'
+    changelog_path:
+        description: 'The path to the changelog.md file'
+        default: 'changelog.txt'
+
+runs:
+    using: "composite"
+    steps:
+        -   name: Generate changelog
+            shell: bash
+            run: php ./generate-changelog.php ${{ inputs.readme_path }} ${{ inputs.changelog_path }}
