@@ -14,4 +14,4 @@ runs:
     steps:
         -   name: Generate changelog
             shell: bash
-            run: php ./generate-changelog.php ${{ inputs.readme_path }} ${{ inputs.changelog_path }}
+            run: php "${GITHUB_ACTION_PATH}/generate-changelog.php" ${{ inputs.readme_path }} ${{ inputs.changelog_path }}
