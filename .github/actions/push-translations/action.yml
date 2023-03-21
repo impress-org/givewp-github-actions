@@ -14,18 +14,18 @@ runs:
             with:
                 switches: -avz --omit-dir-times --no-perms
                 path: ${{github.workspace}}/languages/${{ inputs.plugin_slug }}.pot
-                remote_path: ${{ secrets.TRANSLATIONS_DEPLOY_POT_LOCATION }}givewp/
-                remote_host: ${{ secrets.TRANSLATIONS_DEPLOY_HOST }}
-                remote_user: ${{ secrets.TRANSLATIONS_DEPLOY_USER }}
-                remote_key: ${{ secrets.TRANSLATIONS_DEPLOY_SSH_KEY }}
+                remote_path: ${{ env.TRANSLATIONS_DEPLOY_POT_LOCATION }}givewp/
+                remote_host: ${{ env.TRANSLATIONS_DEPLOY_HOST }}
+                remote_user: ${{ env.TRANSLATIONS_DEPLOY_USER }}
+                remote_key: ${{ env.TRANSLATIONS_DEPLOY_SSH_KEY }}
 
         -   name: SSH to Translations StellarWP Website
             uses: appleboy/ssh-action@master
             with:
-                host: ${{ secrets.TRANSLATIONS_DEPLOY_HOST }}
-                username: ${{ secrets.TRANSLATIONS_DEPLOY_USER }}
-                key: ${{ secrets.TRANSLATIONS_DEPLOY_SSH_KEY }}
+                host: ${{ env.TRANSLATIONS_DEPLOY_HOST }}
+                username: ${{ env.TRANSLATIONS_DEPLOY_USER }}
+                key: ${{ env.TRANSLATIONS_DEPLOY_SSH_KEY }}
                 script: |
                     pwd
                     cd translations.stellarwp.com/html/
-                    wp glotpress import-originals givewp/${{ inputs.plugin_slug }} ${{ secrets.TRANSLATIONS_DEPLOY_POT_LOCATION }}givewp/${{ inputs.plugin_slug }}.pot
+                    wp glotpress import-originals givewp/${{ inputs.plugin_slug }} ${{ env.TRANSLATIONS_DEPLOY_POT_LOCATION }}givewp/${{ inputs.plugin_slug }}.pot
