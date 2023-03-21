@@ -32,6 +32,14 @@ on:
                 required: true
             WEBSITE_DEPLOY_PRIVATE_KEY:
                 required: true
+            TRANSLATIONS_DEPLOY_HOST:
+                required: true
+            TRANSLATIONS_DEPLOY_USER:
+                required: true
+            TRANSLATIONS_DEPLOY_SSH_KEY:
+                required: true
+            TRANSLATIONS_DEPLOY_POT_LOCATION:
+                required: true
             EDD_PRODUCT_ID:
                 required: true
             SLACK_ANNOUNCEMENT_WEBHOOK:

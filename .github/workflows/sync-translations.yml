@@ -12,6 +12,15 @@ on:
                 description: 'Plugin Slug'
                 required: true
                 type: string
+        secrets:
+            TRANSLATIONS_DEPLOY_HOST:
+                required: true
+            TRANSLATIONS_DEPLOY_USER:
+                required: true
+            TRANSLATIONS_DEPLOY_SSH_KEY:
+                required: true
+            TRANSLATIONS_DEPLOY_POT_LOCATION:
+                required: true
     workflow_call:
         inputs:
             ref:
@@ -23,6 +32,15 @@ on:
                 description: 'Plugin Slug'
                 required: true
                 type: string
+        secrets:
+            TRANSLATIONS_DEPLOY_HOST:
+                required: true
+            TRANSLATIONS_DEPLOY_USER:
+                required: true
+            TRANSLATIONS_DEPLOY_SSH_KEY:
+                required: true
+            TRANSLATIONS_DEPLOY_POT_LOCATION:
+                required: true
 
 jobs:
     sync-translations:
@@ -53,3 +71,8 @@ jobs:
             -   uses: impress-org/givewp-github-actions/.github/actions/push-translations@master
                 with:
                     plugin_path: ${{ github.workspace }}
+                env:
+                    TRANSLATIONS_DEPLOY_HOST: ${{ secrets.TRANSLATIONS_DEPLOY_HOST }}
+                    TRANSLATIONS_DEPLOY_USER: ${{ secrets.TRANSLATIONS_DEPLOY_USER }}
+                    TRANSLATIONS_DEPLOY_SSH_KEY: ${{ secrets.TRANSLATIONS_DEPLOY_SSH_KEY }}
+                    TRANSLATIONS_DEPLOY_POT_LOCATION: ${{ secrets.TRANSLATIONS_DEPLOY_POT_LOCATION }}
