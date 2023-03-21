@@ -63,7 +63,6 @@ jobs:
                     node-version: '12'
 
             -   uses: impress-org/givewp-github-actions/.github/actions/generate-pot-file@master
-                if: ${{ inputs.generate_pot_file }}
                 with:
                     plugin_path: ${{ github.workspace }}
                     pot_path: ${{github.workspace}}/languages/${{ inputs.plugin_slug }}.pot
