@@ -9,6 +9,9 @@ on:
             zip_name:
                 type: string
                 required: true
+            translation_slug:
+                type: string
+                required: false
             install_composer_packages:
                 description: 'Whether composer needs to be run as part of the build'
                 type: boolean

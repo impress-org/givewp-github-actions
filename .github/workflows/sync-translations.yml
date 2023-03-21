@@ -45,27 +45,11 @@ jobs:
                     node-version: '12'
 
             -   uses: impress-org/givewp-github-actions/.github/actions/generate-pot-file@master
+                if: ${{ inputs.generate_pot_file }}
                 with:
                     plugin_path: ${{ github.workspace }}
                     pot_path: ${{github.workspace}}/languages/${{ inputs.plugin_slug }}.pot
 
-            -   name: Deploy POT file to translations.stellarwp.com
-                uses: burnett01/rsync-deployments@4.1
+            -   uses: impress-org/givewp-github-actions/.github/actions/push-translations@master
                 with:
-                    switches: -avz --omit-dir-times --no-perms
-                    path: languages/${{ inputs.plugin_slug }}.pot
-                    remote_path: ${{ secrets.TRANSLATIONS_DEPLOY_POT_LOCATION }}givewp/
-                    remote_host: ${{ secrets.TRANSLATIONS_DEPLOY_HOST }}
-                    remote_user: ${{ secrets.TRANSLATIONS_DEPLOY_USER }}
-                    remote_key: ${{ secrets.TRANSLATIONS_DEPLOY_SSH_KEY }}
-
-            -   name: SSH to Translations StellarWP Website
-                uses: appleboy/ssh-action@master
-                with:
-                    host: ${{ secrets.TRANSLATIONS_DEPLOY_HOST }}
-                    username: ${{ secrets.TRANSLATIONS_DEPLOY_USER }}
-                    key: ${{ secrets.TRANSLATIONS_DEPLOY_SSH_KEY }}
-                    script: |
-                        pwd
-                        cd translations.stellarwp.com/html/
-                        wp glotpress import-originals givewp/${{ inputs.plugin_slug }} ${{ secrets.TRANSLATIONS_DEPLOY_POT_LOCATION }}givewp/${{ inputs.plugin_slug }}.pot
+                    plugin_path: ${{ github.workspace }}
