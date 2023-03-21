@@ -70,7 +70,7 @@ jobs:
 
             -   uses: impress-org/givewp-github-actions/.github/actions/push-translations@master
                 with:
-                    plugin_path: ${{ github.workspace }}
+                    plugin_slug: ${{ inputs.plugin_slug }}
                 env:
                     TRANSLATIONS_DEPLOY_HOST: ${{ secrets.TRANSLATIONS_DEPLOY_HOST }}
                     TRANSLATIONS_DEPLOY_USER: ${{ secrets.TRANSLATIONS_DEPLOY_USER }}
