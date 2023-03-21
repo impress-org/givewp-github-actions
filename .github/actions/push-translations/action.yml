@@ -13,7 +13,7 @@ runs:
             uses: burnett01/rsync-deployments@4.1
             with:
                 switches: -avz --omit-dir-times --no-perms
-                path: ${{github.workspace}}/languages/${{ inputs.plugin_slug }}.pot
+                path: languages/${{ inputs.plugin_slug }}.pot
                 remote_path: ${{ env.TRANSLATIONS_DEPLOY_POT_LOCATION }}givewp/
                 remote_host: ${{ env.TRANSLATIONS_DEPLOY_HOST }}
                 remote_user: ${{ env.TRANSLATIONS_DEPLOY_USER }}
