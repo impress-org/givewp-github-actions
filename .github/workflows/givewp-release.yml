@@ -17,6 +17,11 @@ on:
                 type: boolean
                 required: false
                 default: true
+            push_translations:
+                description: 'Whether translations should be pushed to the translation server'
+                type: boolean
+                required: false
+                default: true
         secrets:
             GIVEWP_DOWNLOADS_PATH:
                 required: true
@@ -132,6 +137,7 @@ jobs:
                     asset_content_type: application/zip
 
             -   uses: impress-org/givewp-github-actions/.github/actions/push-translations@master
+                if: ${{ inputs.push_translations }}
                 with:
                     plugin_slug: ${{ inputs.plugin_slug }}
                 env:
