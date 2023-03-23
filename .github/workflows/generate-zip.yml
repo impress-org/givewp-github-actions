@@ -17,7 +17,7 @@ on:
                 required: false
                 default: true
             install_npm_packages:
-                description: 'Whether composer needs to be run as part of the build'
+                description: 'Whether NPM needs to be run as part of the build'
                 type: boolean
                 required: false
                 default: true
