@@ -30,16 +30,30 @@ jobs:
                 with:
                     ref: ${{ inputs.ref }}
 
+            -   uses: actions/setup-node@v3
+                with:
+                    node-version: '12'
+
+            -   name: Cache dependencies
+                uses: actions/cache@v3
+                if: ${{ inputs.install_composer_packages }}
+                with:
+                    path: ~/.composer/cache/files
+                    key: dependencies-composer-${{ hashFiles('composer.json') }}
+
+            -   name: Cache dependencies
+                uses: actions/cache@v3
+                if: ${{ inputs.install_npm_packages }}
+                with:
+                    path: ~/.npm
+                    key: dependencies-npm-${{ hashFiles('package.json') }}
+
             -   name: Install composer dependencies
                 uses: php-actions/composer@v6
                 if: ${{ inputs.install_composer_packages }}
                 with:
                     php_version: 7.4
                     dev: no
-
-            -   uses: actions/setup-node@v3
-                with:
-                    node-version: '12'
 
             -   name: Install npm dependencies & build for translation
                 if: ${{ inputs.install_npm_packages }}
