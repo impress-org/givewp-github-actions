@@ -55,10 +55,13 @@ jobs:
                     php_version: 7.4
                     dev: no
 
-            -   name: Install npm dependencies & build for translation
+            -   name: Install npm dependencies
+                if: ${{ inputs.install_npm_packages }}
+                run: npm install -g npm@7
+
+            -   name: Build for translation
                 if: ${{ inputs.install_npm_packages }}
                 run: |
-                    npm install -g npm@7
                     npm ci
                     npm run build
 
