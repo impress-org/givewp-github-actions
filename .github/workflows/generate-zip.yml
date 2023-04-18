@@ -33,15 +33,20 @@ jobs:
             -   uses: actions/setup-node@v3
                 with:
                     node-version: '12'
+                    
+            -   name: Get Composer Cache Directory
+                id: composer-cache
+                run: |
+                    echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
 
-            -   name: Cache dependencies
+            -   name: Cache composer dependencies
                 uses: actions/cache@v3
                 if: ${{ inputs.install_composer_packages }}
                 with:
-                    path: ~/.composer/cache/files
+                    path: ${{ steps.composer-cache.outputs.dir }}
                     key: dependencies-composer-${{ hashFiles('composer.json') }}
 
-            -   name: Cache dependencies
+            -   name: Cache npm dependencies
                 uses: actions/cache@v3
                 if: ${{ inputs.install_npm_packages }}
                 with:
