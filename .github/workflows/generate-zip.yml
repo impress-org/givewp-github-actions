@@ -64,7 +64,7 @@ jobs:
                 if: ${{ inputs.install_npm_packages }}
                 run: |
                     npm install -g npm@7
-                    npm ci
+                    npm install
 
             -   name: Build assets
                 if: ${{ inputs.install_npm_packages }}
