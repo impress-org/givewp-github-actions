@@ -29,10 +29,6 @@ jobs:
             -   uses: actions/checkout@v3
                 with:
                     ref: ${{ inputs.ref }}
-
-            -   uses: actions/setup-node@v3
-                with:
-                    node-version: '12'
                     
             -   name: Get Composer Cache Directory
                 id: composer-cache
@@ -46,13 +42,6 @@ jobs:
                     path: ${{ steps.composer-cache.outputs.dir }}
                     key: dependencies-composer-${{ hashFiles('composer.json') }}
 
-            -   name: Cache npm dependencies
-                uses: actions/cache@v3
-                if: ${{ inputs.install_npm_packages }}
-                with:
-                    path: ~/.npm
-                    key: dependencies-npm-${{ hashFiles('package.json') }}
-
             -   name: Install composer dependencies
                 uses: php-actions/composer@v6
                 if: ${{ inputs.install_composer_packages }}
@@ -65,6 +54,13 @@ jobs:
                 run: |
                     npm install -g npm@7
                     npm install
+
+            -   uses: actions/setup-node@v3
+                if: ${{ inputs.install_npm_packages }}
+                with:
+                    node-version: '12'
+                    cache: 'npm'
+                    cache-dependency-path: 'package-lock.json'
 
             -   name: Build assets
                 if: ${{ inputs.install_npm_packages }}
