@@ -49,18 +49,18 @@ jobs:
                     php_version: 7.4
                     dev: no
 
-            -   name: Install npm dependencies
-                if: ${{ inputs.install_npm_packages }}
-                run: |
-                    npm install -g npm@7
-                    npm install
-
             -   uses: actions/setup-node@v3
                 if: ${{ inputs.install_npm_packages }}
                 with:
                     node-version: '12'
                     cache: 'npm'
                     cache-dependency-path: 'package-lock.json'
+
+            -   name: Install npm dependencies
+                if: ${{ inputs.install_npm_packages }}
+                run: |
+                    npm install -g npm@7
+                    npm install
 
             -   name: Build assets
                 if: ${{ inputs.install_npm_packages }}
