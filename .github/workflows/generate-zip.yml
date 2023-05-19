@@ -63,7 +63,14 @@ jobs:
 
             -   name: Create a new version number if not a production zip
                 if: ${{ inputs.production == 'false' }}
-                run: echo "NEW_VERSION=${{ env.VERSION }}-dev-$(git show -s --format=%ct HEAD)-$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+                run: |
+                    if [ "${{ env.VERSION }}" = "" ]; then
+                        echo "NEW_VERSION=''" >> $GITHUB_ENV
+                        echo "NEW_VERSION_WITH_SEPARATOR=''" >> $GITHUB_ENV
+                    else
+                        echo "NEW_VERSION=${{ env.VERSION }}-dev-$(git show -s --format=%ct HEAD)-$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+                        echo "NEW_VERSION_WITH_SEPARATOR=.${{ env.NEW_VERSION }}" >> $GITHUB_ENV
+                    fi
 
             -   name: Generate zip name
                 run: |
@@ -74,7 +81,7 @@ jobs:
                             echo "ZIP_NAME=${{ inputs.plugin_slug }}.${{ env.VERSION }}" >> $GITHUB_ENV
                         fi
                     else
-                        echo "ZIP_NAME=${{ inputs.plugin_slug }}.${{ env.NEW_VERSION }}" >> $GITHUB_ENV
+                        echo "ZIP_NAME=${{ inputs.plugin_slug }}${{ env.NEW_VERSION_WITH_SEPARATOR }}" >> $GITHUB_ENV
                     fi
 
             -   name: Get Composer Cache Directory
@@ -122,7 +129,7 @@ jobs:
                     php -d xdebug.mode=off "$(which wp)" i18n make-pot ${{github.workspace}} ${{github.workspace}}/languages/${{ inputs.plugin_slug }}.pot --exclude="$(cat .distignore | tr "\n" "," | sed 's/,$/ /' | tr " " "\n"),src/*.js,src/**/*.js,blocks/**/*.js"
 
             -   name: Update version numbers in files for non production builds
-                if: ${{ inputs.production == 'false' }}
+                if: ${{ inputs.production == 'false' && env.NEW_VERSION != '' }}
                 run: |
                     # Loop over _version_files in package.json
                     jq -c '._version_files[]' package.json | while read -r version_file; do
@@ -146,6 +153,7 @@ jobs:
                     mv ${{ env.ZIP_NAME }}.zip zip/
 
             -   name: Upload zip to S3
+                if: ${{ env.NEW_VERSION != '' }}
                 uses: the-events-calendar/action-s3-utility@main
                 with:
                     args: --acl public-read --follow-symlinks
@@ -159,7 +167,7 @@ jobs:
                     SOURCE_DIR: /github/workspace/zip
 
             -   name: Trigger Slack message
-                if: github.event.inputs.slack_channel != '' && github.event.inputs.slack_thread != ''
+                if: ${{ github.event.inputs.slack_channel != '' && github.event.inputs.slack_thread != '' &&  env.NEW_VERSION != '' }}
                 run: |
                     curl -X GET "https://utility.theeventscalendar.com/slack-message.php?channel=${{ inputs.slack_channel }}&thread=${{ inputs.slack_thread }}&file=${{ env.ZIP_NAME }}.zip&secret=${{ secrets.SLACK_PACKAGING_SECRET }}&url=https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
