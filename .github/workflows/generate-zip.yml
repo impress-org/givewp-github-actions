@@ -65,8 +65,8 @@ jobs:
                 if: ${{ inputs.production == 'false' }}
                 run: |
                     if [ "${{ env.VERSION }}" = "" ]; then
-                        echo "NEW_VERSION=''" >> $GITHUB_ENV
-                        echo "NEW_VERSION_WITH_SEPARATOR=''" >> $GITHUB_ENV
+                        echo "NEW_VERSION=" >> $GITHUB_ENV
+                        echo "NEW_VERSION_WITH_SEPARATOR=" >> $GITHUB_ENV
                     else
                         echo "NEW_VERSION=${{ env.VERSION }}-dev-$(git show -s --format=%ct HEAD)-$(git rev-parse --short HEAD)" >> $GITHUB_ENV
                         echo "NEW_VERSION_WITH_SEPARATOR=.${{ env.NEW_VERSION }}" >> $GITHUB_ENV
