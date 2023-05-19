@@ -21,6 +21,18 @@ on:
                 type: boolean
                 required: false
                 default: true
+            production:
+                description: 'Is this a production build?'
+                default: 'false'
+                type: string
+            slack_channel:
+                description: 'Slack channel ID to post to'
+                type: string
+                default: ''
+            slack_thread:
+                description: 'Slack thread to post to'
+                type: string
+                default: ''
 
 jobs:
     generate-zip:
@@ -29,7 +41,42 @@ jobs:
             -   uses: actions/checkout@v3
                 with:
                     ref: ${{ inputs.ref }}
-                    
+
+            -   name: Store JSON from package.json into env var
+                run: echo "PACKAGE_JSON=$(jq -c . < package.json)" >> $GITHUB_ENV
+
+            -   name: Fetch version from version files
+                run: |
+                    if jq -e 'has("_version_files")' package.json > /dev/null; then
+                        # Read the file and regex from package.json
+                        FILE=$(jq -r '._version_files[0].file' package.json)
+                        REGEX=$(jq -r '._version_files[0].regex' package.json)
+
+                        # Extract the version number using grep and sed
+                        VERSION=$(grep -o -E "$REGEX" "$FILE" | sed -E "s/$REGEX/\2/")
+                    else
+                        VERSION=''
+                    fi
+
+                    # Set VERSION as an environment variable for use in subsequent steps
+                    echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+            -   name: Create a new version number if not a production zip
+                if: ${{ inputs.production == 'false' }}
+                run: echo "NEW_VERSION=${{ env.VERSION }}-dev-$(git show -s --format=%ct HEAD)-$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
+            -   name: Generate zip name
+                run: |
+                    if [ "${{ inputs.production }}" = "true" ]; then
+                        if [ "${{ env.VERSION }}" = "" ]; then
+                            echo "ZIP_NAME=${{ inputs.plugin_slug }}" >> $GITHUB_ENV
+                        else
+                            echo "ZIP_NAME=${{ inputs.plugin_slug }}.${{ env.VERSION }}" >> $GITHUB_ENV
+                        fi
+                    else
+                        echo "ZIP_NAME=${{ inputs.plugin_slug }}.${{ env.NEW_VERSION }}" >> $GITHUB_ENV
+                    fi
+
             -   name: Get Composer Cache Directory
                 id: composer-cache
                 run: |
@@ -74,13 +121,50 @@ jobs:
                     mv wp-cli.phar /usr/local/bin/wp
                     php -d xdebug.mode=off "$(which wp)" i18n make-pot ${{github.workspace}} ${{github.workspace}}/languages/${{ inputs.plugin_slug }}.pot --exclude="$(cat .distignore | tr "\n" "," | sed 's/,$/ /' | tr " " "\n"),src/*.js,src/**/*.js,blocks/**/*.js"
 
+            -   name: Update version numbers in files for non production builds
+                if: ${{ inputs.production == 'false' }}
+                run: |
+                    # Loop over _version_files in package.json
+                    jq -c '._version_files[]' package.json | while read -r version_file; do
+                      # Extract the file and regex
+                      FILE=$(echo "$version_file" | jq -r '.file')
+                      REGEX=$(echo "$version_file" | jq -r '.regex')
+
+                      # Replace the version number using sed
+                      sed -i -E "s/$REGEX/\1${{ env.NEW_VERSION }}/g" "$FILE"
+                    done
+
             -   uses: impress-org/givewp-github-actions/.github/actions/generate-changelog@master
 
+            -   name: Generate plugin zip dir
+                run: rsync -rc --exclude-from="$GITHUB_WORKSPACE/.distignore" "${GITHUB_WORKSPACE}/" ${{ env.ZIP_NAME }}/ --delete --delete-excluded
+
             -   name: Generate plugin zip file
-                run: rsync -rc --exclude-from="$GITHUB_WORKSPACE/.distignore" "${GITHUB_WORKSPACE}/" ${{ inputs.plugin_slug }}/ --delete --delete-excluded
+                run: |
+                    zip -r ${{ env.ZIP_NAME }}.zip ${{ env.ZIP_NAME }}/
+                    mkdir zip
+                    mv ${{ env.ZIP_NAME }}.zip zip/
+
+            -   name: Upload zip to S3
+                uses: the-events-calendar/action-s3-utility@main
+                with:
+                    args: --acl public-read --follow-symlinks
+                env:
+                    S3_BUCKET: ${{ secrets.PACKAGED_ZIP_BUCKET }}
+                    S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+                    S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+                    S3_REGION: ${{ secrets.PACKAGED_ZIP_REGION }}
+                    S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
+                    COMMAND: sync
+                    SOURCE_DIR: /github/workspace/zip
+
+            -   name: Trigger Slack message
+                if: github.event.inputs.slack_channel != '' && github.event.inputs.slack_thread != ''
+                run: |
+                    curl -X GET "https://utility.theeventscalendar.com/slack-message.php?channel=${{ inputs.slack_channel }}&thread=${{ inputs.slack_thread }}&file=${{ env.ZIP_NAME }}.zip&secret=${{ secrets.SLACK_PACKAGING_SECRET }}&url=https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
             -   name: Upload plugin artifact
                 uses: actions/upload-artifact@v3
                 with:
-                    name: ${{ inputs.plugin_slug }}
-                    path: ${{ inputs.plugin_slug }}
+                    name: ${{ env.ZIP_NAME }}
+                    path: ${{ env.ZIP_NAME }}
