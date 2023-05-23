@@ -24,10 +24,10 @@ on:
             # The production input indicates the type of build this is.
             #
             # production = 'true':
-            #    A production build will result in a zip named: give.<version>.zip.
+            #    A production build will result in a zip named: <plugin_slug>.<version>.zip.
             #
             # production = 'false':
-            #    A non-production build will result in a zip named: give.<version>-dev-<timestamp>-<hash>.zip and have
+            #    A non-production build will result in a zip named: <plugin_slug>.<version>-dev-<timestamp>-<hash>.zip and have
             #    the version number within the plugin files updated to <version>-dev-<timestamp>-<hash>.
             production:
                 description: 'Is this a production build?'
