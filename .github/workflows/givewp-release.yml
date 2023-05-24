@@ -71,6 +71,12 @@ jobs:
                 with:
                     node-version: '12'
 
+            -   name: Install WP-CLI
+                run: |
+                    curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+                    chmod +x wp-cli.phar
+                    mv wp-cli.phar /usr/local/bin/wp
+
             -   name: Install npm dependencies & build for translation
                 run: |
                     npm install -g npm@7
@@ -79,10 +85,11 @@ jobs:
 
             -   name: Generate pot file
                 run: |
-                    curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
-                    chmod +x wp-cli.phar
-                    mv wp-cli.phar /usr/local/bin/wp
-                    php -d xdebug.mode=off "$(which wp)" i18n make-pot ${{github.workspace}} ${{github.workspace}}/languages/${{ inputs.plugin_slug }}.pot --exclude="$(cat .distignore | tr "\n" "," | sed 's/,$/ /' | tr " " "\n"),src/*.js,src/**/*.js,*.js.map,blocks/**/*.js"
+                    if [ -f "webpack.config.js" ]; then
+                        php -d xdebug.mode=off "$(which wp)" i18n make-pot ${{github.workspace}} ${{github.workspace}}/languages/${{ inputs.plugin_slug }}.pot --exclude="$(cat .distignore | tr "\n" "," | sed 's/,$/ /' | tr " " "\n"),*.js.map"
+                    else
+                        php -d xdebug.mode=off "$(which wp)" i18n make-pot ${{github.workspace}} ${{github.workspace}}/languages/${{ inputs.plugin_slug }}.pot --exclude="$(cat .distignore | tr "\n" "," | sed 's/,$/ /' | tr " " "\n"),src/*.js,src/**/*.js,*.js.map,blocks/**/*.js"
+                    fi
 
             -   uses: impress-org/givewp-github-actions/.github/actions/generate-changelog@master
 
