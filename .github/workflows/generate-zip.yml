@@ -76,7 +76,7 @@ jobs:
                         echo "NEW_VERSION=" >> $GITHUB_ENV
                         echo "NEW_VERSION_WITH_SEPARATOR=" >> $GITHUB_ENV
                     else
-                        NEW_VERSION=${{ env.VERSION }}-dev-$(git show -s --format=%ct HEAD)-$(git rev-parse --short HEAD)
+                        NEW_VERSION=${{ env.VERSION }}-dev-$(git show -s --format=%ct HEAD)-$(git rev-parse --short=8 HEAD)
                         echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
                         echo "NEW_VERSION_WITH_SEPARATOR=.$NEW_VERSION" >> $GITHUB_ENV
                     fi
