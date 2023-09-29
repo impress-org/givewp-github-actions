@@ -5,8 +5,23 @@
 # This script is not intended for production use or to replace the GitHub Actions workflow.
 # Official releases MUST be created using the GitHub Actions workflow.
 
+# How does it work? This script will:
+# 1. Clone the git repository into a temp directory
+# 2. Install composer packages
+# 3. Install npm packages
+# 4. Build assets
+# 5. Generate the pot file
+# 6. Generate the plugin zip dir
+# 7. Generate the plugin zip file
+# 8. Move the plugin zip file to the current directory
+# 9. Delete the temp directory
+
+# Usage: sh givezip.sh <plugin_slug> <ref> [--verbose]
+
 # Suggestion: add an alias for this script in your .bashrc/.zshrc file so you can run it from anywhere:
 # alias givezip="sh /path/to/givezip.sh"
+# or if you want to run it directly from GitHub:
+# alias givezip="curl -s https://raw.githubusercontent.com/impress-org/givewp-github-actions/master/scripts/givezip.sh | sh /dev/stdin"
 
 # Test
 if [ $# -lt 2 ]; then
