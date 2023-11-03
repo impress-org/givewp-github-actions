@@ -30,13 +30,12 @@ jobs:
                     php_version: 7.4
                     dev: no
 
-            -   uses: actions/setup-node@v3
+            -   uses: actions/setup-node@v4
                 with:
-                    node-version: '12'
+                    node-version: '16'
 
             -   name: Install npm dependencies & build for translation
                 run: |
-                    npm install -g npm@7
                     npm ci
                     npm run build
 

@@ -72,9 +72,9 @@ jobs:
                     php_version: 7.4
                     dev: no
 
-            -   uses: actions/setup-node@v3
+            -   uses: actions/setup-node@v4
                 with:
-                    node-version: '12'
+                    node-version: '16'
 
             -   name: Install WP-CLI
                 run: |
@@ -83,14 +83,11 @@ jobs:
                     mv wp-cli.phar /usr/local/bin/wp
 
             -   name: Install npm dependencies & build for translation
-                run: |
-                    npm install -g npm@7
-                    npm ci
-                    
+                run: npm ci
+
             -   name: Build assets
                 if: ${{ inputs.install_npm_packages }}
-                run: |
-                    npm run build
+                run: npm run build
 
             -   name: Generate pot file
                 run: |
