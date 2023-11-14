@@ -36,7 +36,7 @@ ref=$2
 verbose=$3
 
 starting_directory=$(pwd)
-temp_dir=$(mktemp -d -t wpzip)
+temp_dir=$(mktemp -d -t givezip)
 green='\033[0;32m'
 reset='\033[0m'
 
@@ -65,7 +65,7 @@ composer install --no-dev &> $OUTPUT
 echo "${green}-> Installing npm packages...${reset}"
 {
     . ~/.nvm/nvm.sh
-    nvm use 14
+    nvm use 16
     npm install
 } &> $OUTPUT
 echo "${green}-> Building assets...${reset}"
