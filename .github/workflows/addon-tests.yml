@@ -18,6 +18,11 @@ on:
                 description: 'Addon Slug'
                 required: true
                 type: string
+            install_npm_packages:
+                description: 'Whether NPM needs to be run as part of the build'
+                type: boolean
+                required: false
+                default: true
             givewp_branch:
                 description: 'GiveWP Branch'
                 required: false
@@ -129,10 +134,12 @@ jobs:
 
             -   name: Setup Node
                 uses: actions/setup-node@v3
+                if: ${{ inputs.install_npm_packages }}
                 with:
                     node-version: 16
 
             -   name: Run npm build for addon
+                if: ${{ inputs.install_npm_packages }}
                 working-directory: ./${{ inputs.addon_slug }}
                 run: |
                     npm ci
