@@ -23,6 +23,11 @@ on:
                 type: boolean
                 required: false
                 default: true
+            php_matrix:
+                description: 'To be used in the strategy > matrix'
+                type: string
+                required: false
+                default: "[ 7.2, 7.4, 8.0 ]"
             givewp_branch:
                 description: 'GiveWP Branch'
                 required: false
@@ -37,7 +42,7 @@ jobs:
         runs-on: ubuntu-latest
         strategy:
             matrix:
-                php: [ 7.2, 7.4, 8.0 ]
+                php: ${{ fromJson(inputs.php_matrix) }}
                 mysql: [ 'mysql:5.6', 'mysql:8.0' ]
                 wordpress: [ '6.0', latest ]
 
