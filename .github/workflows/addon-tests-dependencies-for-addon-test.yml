@@ -133,7 +133,7 @@ jobs:
                 working-directory: './give'
                 run: composer dump-autoload
 
-            -   name: Install composer dependencies for Addon (Test)
+            -   name: Install composer dependencies for Addon
                 working-directory: ./${{ inputs.addon_slug }}                
                 uses: php-actions/composer@v5
                 with:
