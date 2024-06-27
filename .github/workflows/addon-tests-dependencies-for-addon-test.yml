@@ -117,10 +117,10 @@ jobs:
                 run: mysql -uroot --password='${{ env.mysql_pass}}' -h127.0.0.1 --port=${{env.mysql_port}}
 
             -   name: Set UP GiveWP Core
-                uses: php-actions/composer@v6
-                with:
-                    working_dir: './give'
-                    command: bash tests/includes/bin/install.sh wordpress_develop_test root ${{ env.mysql_pass }} 127.0.0.1:${{ env.mysql_port }} ${{ matrix.wordpress }}
+                working-directory: './give'
+                run: |
+                    composer install --no-progress --no-interaction
+                    bash tests/includes/bin/install.sh wordpress_develop_test root ${{ env.mysql_pass }} 127.0.0.1:${{ env.mysql_port }} ${{ matrix.wordpress }}
 
             -   name: Set Up PHP for testing
                 uses: shivammathur/setup-php@v2
