@@ -134,10 +134,10 @@ jobs:
                 run: composer dump-autoload
 
             -   name: Install composer dependencies for Addon
-                working-directory: ./${{ inputs.addon_slug }}                
+                working-directory: ./${{ inputs.addon_slug }}
                 uses: php-actions/composer@v5
                 with:
-                    php-version: ${{ matrix.php }}            
+                    php-version: ${{ matrix.php }}
 
             -   name: Setup Node
                 uses: actions/setup-node@v3
