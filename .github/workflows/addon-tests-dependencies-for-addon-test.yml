@@ -134,8 +134,9 @@ jobs:
                 run: composer dump-autoload
 
             -   name: Install composer dependencies for Addon
-                working-directory: ./${{ inputs.addon_slug }}
-                run: composer install --no-progress --no-interaction
+                uses: php-actions/composer@v6
+                with:
+                    working_dir: ./${{ inputs.addon_slug }}
 
             -   name: Setup Node
                 uses: actions/setup-node@v3
