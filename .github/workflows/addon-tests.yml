@@ -116,6 +116,11 @@ jobs:
             -   name: Configure MySQL
                 run: mysql -uroot --password='${{ env.mysql_pass}}' -h127.0.0.1 --port=${{env.mysql_port}}
 
+            -   name: Install svn
+                run: |
+                    sudo apt-get update
+                    sudo apt-get install -y subversion
+
             -   name: Set UP GiveWP Core
                 working-directory: './give'
                 run: |
@@ -150,11 +155,6 @@ jobs:
                 run: |
                     npm ci
                     npm run dev
-
-            -   name: Install svn
-                run: |
-                    sudo apt-get update
-                    sudo apt-get install -y subversion
 
             -   name: Run Addon Tests Against GiveWP
                 working-directory: ./${{ inputs.addon_slug }}
