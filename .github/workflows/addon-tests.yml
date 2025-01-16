@@ -151,6 +151,11 @@ jobs:
                     npm ci
                     npm run dev
 
+            -   name: Install svn
+                run: |
+                    sudo apt-get update
+                    sudo apt-get install -y subversion
+
             -   name: Run Addon Tests Against GiveWP
                 working-directory: ./${{ inputs.addon_slug }}
                 run: php -d memory_limit=-1 vendor/bin/phpunit
