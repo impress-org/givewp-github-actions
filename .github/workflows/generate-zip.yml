@@ -183,7 +183,7 @@ jobs:
                     curl -X GET "https://utility.theeventscalendar.com/slack-message.php?channel=${{ inputs.slack_channel }}&thread=${{ inputs.slack_thread }}&file=${{ env.ZIP_NAME }}.zip&secret=${{ secrets.SLACK_PACKAGING_SECRET }}&url=https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
             -   name: Upload plugin artifact
-                uses: actions/upload-artifact@v3
+                uses: actions/upload-artifact@v4
                 with:
                     name: ${{ env.ZIP_NAME }}
                     path: ${{ env.ZIP_NAME }}
