@@ -144,7 +144,7 @@ jobs:
                     working_dir: ./${{ inputs.addon_slug }}
 
             -   name: Setup Node
-                uses: actions/setup-node@v3
+                uses: actions/setup-node@v4
                 if: ${{ inputs.install_npm_packages }}
                 with:
                     node-version: 16

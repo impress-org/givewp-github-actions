@@ -112,10 +112,10 @@ jobs:
                     php_version: 7.4
                     dev: no
 
-            -   uses: actions/setup-node@v3
+            -   uses: actions/setup-node@v4
                 if: ${{ inputs.install_npm_packages }}
                 with:
-                    node-version: '16'
+                    node-version: '18'
                     cache: 'npm'
                     cache-dependency-path: 'package-lock.json'
 
