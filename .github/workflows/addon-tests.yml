@@ -27,7 +27,7 @@ on:
                 description: 'To be used in the strategy > matrix'
                 type: string
                 required: false
-                default: "[ 7.2, 7.4, 8.0 ]"
+                default: "[ 7.4, 8.0, 8.1, 8.2, 8.3, 8.4 ]"
             givewp_branch:
                 description: 'GiveWP Branch'
                 required: false
@@ -71,12 +71,12 @@ jobs:
         steps:
             # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
             -   name: Checkout Addon
-                uses: actions/checkout@v3
+                uses: actions/checkout@v4
                 with:
                     path: ${{ inputs.addon_slug }}
 
             -   name: Check out GiveWP ${{ inputs.givewp_branch }} branch
-                uses: actions/checkout@v3
+                uses: actions/checkout@v4
                 with:
                     repository: impress-org/givewp
                     ref: ${{ inputs.givewp_branch }}
