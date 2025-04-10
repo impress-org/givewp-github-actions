@@ -4,12 +4,12 @@ on:
     workflow_dispatch: # Allows you to run this workflow manually from the Actions tab
         inputs:
             ref:
-                description: 'Git Commit Ref (branch, tag, or hash)'
+                description: "Git Commit Ref (branch, tag, or hash)"
                 required: true
                 type: string
-                default: 'master'
+                default: "master"
             plugin_slug:
-                description: 'Plugin Slug'
+                description: "Plugin Slug"
                 required: true
                 type: string
         secrets:
@@ -24,12 +24,12 @@ on:
     workflow_call:
         inputs:
             ref:
-                description: 'Git Commit Ref (branch, tag, or hash)'
+                description: "Git Commit Ref (branch, tag, or hash)"
                 required: true
                 type: string
-                default: 'master'
+                default: "master"
             plugin_slug:
-                description: 'Plugin Slug'
+                description: "Plugin Slug"
                 required: true
                 type: string
         secrets:
@@ -47,31 +47,31 @@ jobs:
         name: 🔁 Sync Translations
         runs-on: ubuntu-latest
         steps:
-            -   uses: actions/checkout@v4
-                with:
-                    ref: ${{ inputs.ref }}
+            - uses: actions/checkout@v4
+              with:
+                  ref: ${{ inputs.ref }}
 
-            -   name: Install composer dependencies
-                uses: php-actions/composer@v6
-                if: ${{ inputs.install_composer_packages }}
-                with:
-                    php_version: 7.4
-                    dev: no
+            - name: Install composer dependencies
+              uses: php-actions/composer@v6
+              if: ${{ inputs.install_composer_packages }}
+              with:
+                  php_version: 7.4
+                  dev: no
 
-            -   uses: actions/setup-node@v4
-                with:
-                    node-version: '12'
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: "18"
 
-            -   uses: impress-org/givewp-github-actions/.github/actions/generate-pot-file@master
-                with:
-                    plugin_path: ${{ github.workspace }}
-                    pot_path: ${{github.workspace}}/languages/${{ inputs.plugin_slug }}.pot
+            - uses: impress-org/givewp-github-actions/.github/actions/generate-pot-file@master
+              with:
+                  plugin_path: ${{ github.workspace }}
+                  pot_path: ${{github.workspace}}/languages/${{ inputs.plugin_slug }}.pot
 
-            -   uses: impress-org/givewp-github-actions/.github/actions/push-translations@master
-                with:
-                    plugin_slug: ${{ inputs.plugin_slug }}
-                env:
-                    TRANSLATIONS_DEPLOY_HOST: ${{ secrets.TRANSLATIONS_DEPLOY_HOST }}
-                    TRANSLATIONS_DEPLOY_USER: ${{ secrets.TRANSLATIONS_DEPLOY_USER }}
-                    TRANSLATIONS_DEPLOY_SSH_KEY: ${{ secrets.TRANSLATIONS_DEPLOY_SSH_KEY }}
-                    TRANSLATIONS_DEPLOY_POT_LOCATION: ${{ secrets.TRANSLATIONS_DEPLOY_POT_LOCATION }}
+            - uses: impress-org/givewp-github-actions/.github/actions/push-translations@master
+              with:
+                  plugin_slug: ${{ inputs.plugin_slug }}
+              env:
+                  TRANSLATIONS_DEPLOY_HOST: ${{ secrets.TRANSLATIONS_DEPLOY_HOST }}
+                  TRANSLATIONS_DEPLOY_USER: ${{ secrets.TRANSLATIONS_DEPLOY_USER }}
+                  TRANSLATIONS_DEPLOY_SSH_KEY: ${{ secrets.TRANSLATIONS_DEPLOY_SSH_KEY }}
+                  TRANSLATIONS_DEPLOY_POT_LOCATION: ${{ secrets.TRANSLATIONS_DEPLOY_POT_LOCATION }}
