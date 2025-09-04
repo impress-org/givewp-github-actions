@@ -107,7 +107,7 @@ jobs:
             -   name: Deploy plugin zip to GiveWP.com
                 uses: burnett01/rsync-deployments@4.1
                 with:
-                    switches: -avz --omit-dir-times --no-perms -e "ssh -o IdentitiesOnly=yes"
+                    switches: -avz --omit-dir-times --no-perms
                     path: release.zip
                     remote_path: ${{ secrets.GIVEWP_DOWNLOADS_PATH }}/${{ inputs.zip_name }}.zip
                     remote_host: ${{ secrets.WEBSITE_DEPLOY_HOST }}
