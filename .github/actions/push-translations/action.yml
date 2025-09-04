@@ -12,7 +12,7 @@ runs:
         -   name: Deploy POT file to translations.stellarwp.com
             uses: burnett01/rsync-deployments@4.1
             with:
-                switches: -avz --omit-dir-times --no-perms
+                switches: -avz --omit-dir-times --no-perms -e 'ssh -o IdentitiesOnly=yes'
                 path: languages/${{ inputs.plugin_slug }}.pot
                 remote_path: ${{ env.TRANSLATIONS_DEPLOY_POT_LOCATION }}givewp/
                 remote_host: ${{ env.TRANSLATIONS_DEPLOY_HOST }}
