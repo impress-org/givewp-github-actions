@@ -155,11 +155,11 @@ jobs:
             -   uses: impress-org/givewp-github-actions/.github/actions/generate-changelog@master
 
             -   name: Generate plugin zip dir
-                run: rsync -rc --exclude-from="$GITHUB_WORKSPACE/.distignore" "${GITHUB_WORKSPACE}/" ${{ env.ZIP_NAME }}/ --delete --delete-excluded
+                run: rsync -rc --exclude-from="$GITHUB_WORKSPACE/.distignore" "${GITHUB_WORKSPACE}/" ${{ inputs.plugin_slug }}/ --delete --delete-excluded
 
             -   name: Generate plugin zip file
                 run: |
-                    zip -r ${{ env.ZIP_NAME }}.zip ${{ env.ZIP_NAME }}/
+                    zip -r ${{ env.ZIP_NAME }}.zip ${{ inputs.plugin_slug }}/
                     mkdir zip
                     mv ${{ env.ZIP_NAME }}.zip zip/
 
@@ -186,4 +186,4 @@ jobs:
                 uses: actions/upload-artifact@v4
                 with:
                     name: ${{ env.ZIP_NAME }}
-                    path: ${{ env.ZIP_NAME }}
+                    path: ${{ inputs.plugin_slug }}
