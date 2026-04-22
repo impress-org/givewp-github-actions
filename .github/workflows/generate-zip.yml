@@ -186,4 +186,4 @@ jobs:
                 uses: actions/upload-artifact@v4
                 with:
                     name: ${{ env.ZIP_NAME }}
-                    path: ${{ inputs.plugin_slug }}
+                    path: zip/
