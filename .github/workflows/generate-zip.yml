@@ -156,7 +156,7 @@ jobs:
             -   uses: impress-org/givewp-github-actions/.github/actions/generate-changelog@master
 
             -   name: Generate plugin zip dir
-                run: rsync -rc --exclude-from="$GITHUB_WORKSPACE/.distignore" "${GITHUB_WORKSPACE}/" ${{ inputs.plugin_slug }}/ --delete --delete-excluded
+                run: rsync -rc --exclude-from="$GITHUB_WORKSPACE/.distignore" --exclude="DOCKER_ENV" --exclude="docker_tag" --exclude="output.log" "${GITHUB_WORKSPACE}/" ${{ inputs.plugin_slug }}/ --delete --delete-excluded
 
             -   name: Generate plugin zip file
                 run: |
