@@ -27,9 +27,11 @@ jobs:
                     php-version: ${{ matrix.php }}
                     extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, mysql, mysqli, pdo_mysql, bcmath, soap, intl, gd, exif, iconv, imagick, fileinfo
                     coverage: none
-
-            -   name: Configure Composer for GitHub
-                run: composer config -g github-oauth.github.com "${{ secrets.GITHUB_TOKEN }}"
+                    # Pass an empty token so setup-php doesn't write GITHUB_TOKEN into
+                    # Composer's auth config. Strauss <= 0.27.2 packages an older version of
+                    # composer and its regex rejects the new GITHUB_TOKEN format. Remove this
+                    # once a new version of Strauss has been released and composer.json has been updated.
+                    github-token: ''
 
             -   name: Install composer dependencies
                 run: composer install --no-progress --no-interaction
