@@ -41,7 +41,7 @@ $firstLine = true;
 $line = strtok($changeLogSection, "\n");
 
 while ($line !== false) {
-    if ( preg_match('= (\d+\.\d+\.\d+): ([a-zA-Z]+ \d{1,2}\w{2}, \d{4}) =', $line, $matches) ) {
+    if ( preg_match('= ([\d.]+): ([a-zA-Z]+ \d{1,2}\w{2}, \d{4}) =', $line, $matches) ) {
         $version = $matches[1];
         $date = new DateTime($matches[2]);
 
