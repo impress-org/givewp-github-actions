@@ -40,21 +40,29 @@ Report which of these the repo has. Do not create the missing ones yet; some are
       node setup entirely when it's absent** — the build then runs on whatever node the runner ships.
 - [ ] `.distignore`, or `zip_use_default_ignore: true` in `.puprc`, so the zip doesn't ship dev files.
 
-Then check the repo's org secrets. The shared workflow requires `GH_BOT_TOKEN` and `JENKINS_SECRET` plus
-five `S3_*` values. impress-org stores the S3 ones under different names, so the caller maps them:
+Then map the secrets. The shared workflow requires `GH_BOT_TOKEN` and `JENKINS_SECRET` plus five `S3_*`
+values. impress-org stores the S3 ones under different names, so the caller maps them:
 
-| shared workflow wants | impress-org has        |
-|-----------------------|------------------------|
-| `GH_BOT_TOKEN`        | **may not exist yet**  |
-| `JENKINS_SECRET`      | `SLACK_PACKAGING_SECRET` |
-| `S3_BUCKET`           | `ZIP_S3_BUCKET`        |
-| `S3_ACCESS_KEY_ID`    | `ZIP_S3_ACCESS_KEY_ID` |
-| `S3_SECRET_ACCESS_KEY`| `ZIP_S3_SECRET_ACCESS_KEY` |
-| `S3_REGION`           | `ZIP_S3_REGION`        |
-| `S3_ENDPOINT`         | `ZIP_S3_ENDPOINT`      |
+| shared workflow wants | pass it                     |
+|-----------------------|-----------------------------|
+| `GH_BOT_TOKEN`        | `GITHUB_TOKEN` — see below  |
+| `JENKINS_SECRET`      | `SLACK_PACKAGING_SECRET`    |
+| `S3_BUCKET`           | `ZIP_S3_BUCKET`             |
+| `S3_ACCESS_KEY_ID`    | `ZIP_S3_ACCESS_KEY_ID`      |
+| `S3_SECRET_ACCESS_KEY`| `ZIP_S3_SECRET_ACCESS_KEY`  |
+| `S3_REGION`           | `ZIP_S3_REGION`             |
+| `S3_ENDPOINT`         | `ZIP_S3_ENDPOINT`           |
 
-If `GH_BOT_TOKEN` isn't set at the org, stop and say so — it's `required: true` and the run fails
-immediately without it.
+`GH_BOT_TOKEN` is `required: true`, so something must be passed, but it doesn't have to be a bot PAT.
+The shared workflow only uses it to check out the repo the workflow is running in, and the automatic
+per-run `GITHUB_TOKEN` already covers that — including for private repos. A real bot token is only
+needed when the checkout has to reach *outside* the repo, which is why TEC uses one: its zip workflow
+also checks out `jenkins-scripts` and recurses into the `common` submodule.
+
+So check whether this repo needs that reach — a `.gitmodules`, an `.npmrc` pointing at
+`npm.pkg.github.com`, or a private `repositories` entry in `composer.json`. If it has none of those
+(none of the give repos did as of the core migration), pass `GITHUB_TOKEN` and move on. If it has any of
+them, stop and ask for a bot token before going further.
 
 ## Phase 2 — write `.github/workflows/zip.yml`
 
@@ -98,7 +106,8 @@ jobs:
             slack_channel: ${{ inputs.slack_channel }}
             slack_thread: ${{ inputs.slack_thread }}
         secrets:
-            GH_BOT_TOKEN: ${{ secrets.GH_BOT_TOKEN }}
+            # Only used to check out this repo, which the per-run token covers. See the note above.
+            GH_BOT_TOKEN: ${{ secrets.GITHUB_TOKEN }}
             JENKINS_SECRET: ${{ secrets.SLACK_PACKAGING_SECRET }}
             S3_BUCKET: ${{ secrets.ZIP_S3_BUCKET }}
             S3_ACCESS_KEY_ID: ${{ secrets.ZIP_S3_ACCESS_KEY_ID }}
