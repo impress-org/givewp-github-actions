@@ -51,20 +51,39 @@ jobs:
                 with:
                     ref: ${{ inputs.ref }}
 
-            -   name: Store JSON from package.json into env var
-                run: echo "PACKAGE_JSON=$(jq -c . < package.json)" >> $GITHUB_ENV
+            -   name: Resolve the files the version lives in
+                run: |
+                    # Version metadata, in order of preference:
+                    #
+                    #   1. `_version_files` in package.json
+                    #   2. `paths.versions` in .puprc
+                    #   3. the `Stable tag` header in readme.txt
+                    #
+                    # GiveWP core declares all three; add-ons only have a readme, and without this fallback
+                    # they end up with an empty version, which skips the S3 upload and the Slack message.
+                    if [ -f package.json ] && jq -e 'has("_version_files")' package.json > /dev/null 2>&1; then
+                        VERSION_FILES=$(jq -c '._version_files' package.json)
+                    elif [ -f .puprc ] && jq -e '.paths.versions' .puprc > /dev/null 2>&1; then
+                        VERSION_FILES=$(jq -c '.paths.versions' .puprc)
+                    elif [ -f readme.txt ]; then
+                        # Casing of the readme header isn't consistent across repos.
+                        VERSION_FILES='[{"file":"readme.txt","regex":"([Ss]table [Tt]ag: )(.+)"}]'
+                    else
+                        VERSION_FILES='[]'
+                    fi
+
+                    echo "VERSION_FILES=$VERSION_FILES" >> $GITHUB_ENV
 
             -   name: Fetch version from version files
                 run: |
-                    if jq -e 'has("_version_files")' package.json > /dev/null; then
-                        # Read the file and regex from package.json
-                        FILE=$(jq -r '._version_files[0].file' package.json)
-                        REGEX=$(jq -r '._version_files[0].regex' package.json)
+                    FILE=$(echo "$VERSION_FILES" | jq -r '.[0].file // ""')
+                    REGEX=$(echo "$VERSION_FILES" | jq -r '.[0].regex // ""')
 
+                    VERSION=''
+
+                    if [ -n "$FILE" ] && [ -f "$FILE" ]; then
                         # Extract the version number using grep and sed
-                        VERSION=$(grep -o -E "$REGEX" "$FILE" | sed -E "s/$REGEX/\2/")
-                    else
-                        VERSION=''
+                        VERSION=$(grep -o -E "$REGEX" "$FILE" | head -n 1 | sed -E "s/$REGEX/\2/" | tr -d '[:space:]')
                     fi
 
                     # Set VERSION as an environment variable for use in subsequent steps
@@ -143,14 +162,16 @@ jobs:
             -   name: Update version numbers in files for non production builds
                 if: ${{ inputs.production == 'false' && env.NEW_VERSION != '' }}
                 run: |
-                    # Loop over _version_files in package.json
-                    jq -c '._version_files[]' package.json | while read -r version_file; do
+                    # Loop over every file the version was resolved from
+                    echo "$VERSION_FILES" | jq -c '.[]' | while read -r version_file; do
                       # Extract the file and regex
                       FILE=$(echo "$version_file" | jq -r '.file')
                       REGEX=$(echo "$version_file" | jq -r '.regex')
 
                       # Replace the version number using sed
-                      sed -i -E "s/$REGEX/\1${{ env.NEW_VERSION }}/g" "$FILE"
+                      if [ -f "$FILE" ]; then
+                          sed -i -E "s/$REGEX/\1${{ env.NEW_VERSION }}/g" "$FILE"
+                      fi
                     done
 
             -   uses: impress-org/givewp-github-actions/.github/actions/generate-changelog@master
@@ -179,7 +200,7 @@ jobs:
                     SOURCE_DIR: /github/workspace/zip
 
             -   name: Trigger Slack message
-                if: ${{ github.event.inputs.slack_channel != '' && github.event.inputs.slack_thread != '' &&  env.NEW_VERSION != '' }}
+                if: ${{ inputs.slack_channel != '' && inputs.slack_thread != '' && env.NEW_VERSION != '' }}
                 run: |
                     curl -X GET "https://utility.theeventscalendar.com/slack-message.php?channel=${{ inputs.slack_channel }}&thread=${{ inputs.slack_thread }}&file=${{ env.ZIP_NAME }}.zip&secret=${{ secrets.SLACK_PACKAGING_SECRET }}&url=https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
