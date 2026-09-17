@@ -12,7 +12,7 @@ on:
 
 jobs:
     check:
-        runs-on: ubuntu-latest
+        runs-on: blacksmith-4vcpu-ubuntu-2404
         strategy:
             matrix:
                 testVersion: ${{ fromJson(inputs.test_versions) }} # The test versions should be strings to maintain formatting

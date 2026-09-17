@@ -33,7 +33,7 @@ on:
 jobs:
     release:
         name: Build & Release to WordPress.org
-        runs-on: ubuntu-latest
+        runs-on: blacksmith-4vcpu-ubuntu-2404
 
         steps:
             -   name: Checkout code
