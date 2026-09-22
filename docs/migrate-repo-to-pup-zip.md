@@ -39,6 +39,9 @@ Report which of these the repo has. Do not create the missing ones yet; some are
 - [ ] `.nvmrc`, if the build runs npm. The shared workflow reads the node version from it and **skips
       node setup entirely when it's absent** — the build then runs on whatever node the runner ships.
 - [ ] `.distignore`, or `zip_use_default_ignore: true` in `.puprc`, so the zip doesn't ship dev files.
+- [ ] Whether the repo ships a POT file. Check `languages/` in a zip the current `generate-zip.yml`
+      produced. If there's a `<slug>.pot` in there, the migration has to carry the POT step across —
+      see Phase 2. Every impress-org repo shipped one as of the core migration.
 
 Then map the secrets. The shared workflow requires `GH_BOT_TOKEN` and `JENKINS_SECRET` plus five `S3_*`
 values. impress-org stores the S3 ones under different names, so the caller maps them:
@@ -129,8 +132,39 @@ Three mistakes to avoid, in order of how quietly they fail:
    by those exact names.
 3. **Match the repo's existing YAML indentation** (impress-org repos use 4 spaces).
 
-The shared workflow also takes `i18n`, `check` and `additional_commands` if the repo needs them. Leave
-them at their defaults unless there's a reason.
+The shared workflow also takes `i18n`, `check` and `additional_commands`. Leave `i18n` and `check` at
+their defaults unless there's a reason, but read the next section before skipping `additional_commands`.
+
+### Carry the POT file across, or the zip silently loses it
+
+`generate-zip.yml` had an explicit `Generate pot file` step. **pup has no equivalent, and nothing in the
+shared workflow replaces it.**
+
+`pup i18n` looks like the equivalent and is not: it *downloads* finished translations from a GlotPress
+instance. It does not generate a POT from source. With no `i18n` section in `.puprc` it exits
+immediately — in the GiveWP core run it took 0.18 seconds — and the step still reports success. The zip
+ends up with a `languages/` directory containing nothing but `.gitkeep`, and nothing anywhere fails.
+
+This is why the Phase 1 checklist asks whether the repo ships a POT. If it does, generate it through
+`additional_commands`, which the shared workflow runs after `pup build` and before `pup package` —
+the only window where the file will be picked up:
+
+```yaml
+            # pup has no POT generation of its own: `pup i18n` pulls finished translations down from
+            # GlotPress, it does not produce the source POT. Generate it here, which the shared workflow
+            # runs after `pup build` and before `pup package`, so languages/<slug>.pot ends up in the zip.
+            # WP-CLI is already on the PATH by this point - the shared workflow installs it.
+            additional_commands: |
+                php -d xdebug.mode=off "$(which wp)" i18n make-pot "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/languages/<SLUG>.pot" --exclude="$(cat .distignore | tr "\n" "," | sed 's/,$/ /' | tr " " "\n"),src/**/*.js,*.js.map,blocks/**/*.js"
+```
+
+Copy the `--exclude` list from whatever the repo's `generate-zip.yml` used rather than the above, since
+it varies by repo. Also confirm `.distignore` has no `languages` entry, or the file gets generated and
+then dropped from the zip.
+
+A production build is enough. GiveWP core's `release.yml` ran `npm run dev`, generated the POT, then ran
+`npm run build`, and the POT from a production-only build proved byte-identical apart from the
+`POT-Creation-Date` header — 6,434 msgids either way. The dev build is not load-bearing here.
 
 ## Phase 3 — verify before opening the PR
 
@@ -142,6 +176,9 @@ them at their defaults unless there's a reason.
   `<zip_name>.<version>-dev-<timestamp>-<hash>`.
 - Run the workflow manually from the Actions tab, `production: no`, and confirm the run uploads to S3
   and posts to Slack when given a channel and thread.
+- If the repo ships a POT, download the run's artifact and confirm `languages/<slug>.pot` is present and
+  roughly the size of the one in the current zip. Presence alone isn't enough — an empty or truncated POT
+  looks like success until a translator opens it.
 - Ask the bot for a zip and confirm it dispatches `zip.yml` rather than `generate-zip.yml`.
 
 ## Phase 4 — open the PR
