@@ -1,4 +1,4 @@
-name: 🛠 Reusable Release Prep
+name: Release Prep
 
 on:
   workflow_call:
@@ -9,7 +9,7 @@ on:
         default: "automatic"
         type: string
       release_version:
-        description: "Specific target version to release (optional; overrides version_bump_type if provided)"
+        description: "Specific target version to release (optional; overrides 'Type of version bump' if provided)"
         required: false
         default: ""
         type: string
