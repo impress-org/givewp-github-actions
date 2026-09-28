@@ -3,13 +3,20 @@ name: 🛠 Reusable Release Prep
 on:
   workflow_call:
     inputs:
+      version_bump_type:
+        description: "Type of version bump"
+        required: false
+        default: "automatic"
+        type: string
       release_version:
-        description: "Target version to release (e.g. 4.17.0)"
-        required: true
+        description: "Specific target version to release (optional; overrides version_bump_type if provided)"
+        required: false
+        default: ""
         type: string
       release_branch:
-        description: "Name of the release branch to create/prepare (e.g. release/4.17.0 or release/M26.mew)"
-        required: true
+        description: "Name of the release branch to create/prepare (optional; e.g. release/4.17.0. If omitted, generated automatically from version)"
+        required: false
+        default: ""
         type: string
       base_branch:
         description: "Base branch to branch off of (e.g. develop)"
@@ -64,7 +71,8 @@ jobs:
       - name: Print inputs
         run: |
           echo "### Release Prep Inputs" >> $GITHUB_STEP_SUMMARY
-          echo "- Target Version: \`${{ inputs.release_version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Version Bump Type: \`${{ inputs.version_bump_type }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Specific Version: \`${{ inputs.release_version }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- Release Branch: \`${{ inputs.release_branch }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- Base Branch: \`${{ inputs.base_branch }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- Target PR Base: \`${{ inputs.target_pr_base }}\`" >> $GITHUB_STEP_SUMMARY
@@ -107,9 +115,109 @@ jobs:
             npm ci --prefer-offline --no-audit || npm install
           fi
 
+      - name: Determine Version
+        id: determine_version
+        env:
+          INPUT_VERSION: ${{ inputs.release_version }}
+          BUMP_TYPE_INPUT: ${{ inputs.version_bump_type }}
+        run: |
+          # 1. Detect current version from root plugin file, package.json, or .puprc
+          CURRENT_VERSION=""
+          if [ -f "package.json" ]; then
+            CURRENT_VERSION=$(grep -Po '"version":\s*"\K[^"]+' package.json | head -n 1 || true)
+          fi
+
+          if [ -z "$CURRENT_VERSION" ]; then
+            for file in $(find . -maxdepth 1 -name "*.php" -type f | sort); do
+              CURRENT_VERSION=$(grep -Po '^\s*\*?\s*Version:\s*\K[0-9]+\.[0-9]+\.[0-9]+(?:\.[0-9]+)?' "$file" | head -n 1 || true)
+              if [ -n "$CURRENT_VERSION" ]; then
+                break
+              fi
+            done
+          fi
+
+          if [ -z "$CURRENT_VERSION" ]; then
+            echo "Error: Could not detect current version." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          echo "Current detected version: $CURRENT_VERSION"
+
+          # If an explicit version was provided, use it directly
+          if [ -n "$INPUT_VERSION" ]; then
+            TARGET_VERSION="$INPUT_VERSION"
+          else
+            BUMP_TYPE="${BUMP_TYPE_INPUT%% *}"
+
+            # If automatic, inspect changelog/ directory to pick the highest bump level
+            if [ "$BUMP_TYPE" = "automatic" ]; then
+              echo "Inspecting changelog/ for highest change type..."
+              if [ -d "changelog" ] && [ -n "$(find changelog -name '*.yml' -o -name '*.yaml' 2>/dev/null)" ]; then
+                if grep -riq "^type:\s*['\"]*major" changelog/; then
+                  BUMP_TYPE="major"
+                elif grep -riq "^type:\s*['\"]*\(feature\|feat\)" changelog/; then
+                  BUMP_TYPE="feature"
+                elif grep -riq "^type:\s*['\"]*\(enhancement\|tweak\|fix\|security\)" changelog/; then
+                  BUMP_TYPE="maintenance"
+                else
+                  BUMP_TYPE="maintenance"
+                fi
+              else
+                BUMP_TYPE="maintenance"
+              fi
+              echo "Auto-detected bump type: $BUMP_TYPE"
+            fi
+
+            IFS='.' read -r -a parts <<< "$CURRENT_VERSION"
+            case "$BUMP_TYPE" in
+              major)
+                parts[0]=$((parts[0] + 1))
+                parts[1]=0
+                parts[2]=0
+                unset parts[3]
+                ;;
+              feature)
+                parts[1]=$((parts[1] + 1))
+                parts[2]=0
+                unset parts[3]
+                ;;
+              maintenance)
+                parts[2]=$((parts[2] + 1))
+                unset parts[3]
+                ;;
+              hotfix)
+                if [ -z "${parts[3]}" ]; then
+                  parts[3]=1
+                else
+                  parts[3]=$((parts[3] + 1))
+                fi
+                ;;
+              *)
+                parts[2]=$((parts[2] + 1))
+                unset parts[3]
+                ;;
+            esac
+
+            TARGET_VERSION="${parts[0]}.${parts[1]}.${parts[2]}"
+            if [ -n "${parts[3]}" ]; then
+              TARGET_VERSION="$TARGET_VERSION.${parts[3]}"
+            fi
+          fi
+
+          echo "Target version: $TARGET_VERSION"
+          echo "target_version=$TARGET_VERSION" >> $GITHUB_OUTPUT
+
+          # Determine release branch name
+          BRANCH_NAME="${{ inputs.release_branch }}"
+          if [ -z "$BRANCH_NAME" ]; then
+            BRANCH_NAME="release/$TARGET_VERSION"
+          fi
+          echo "Target branch: $BRANCH_NAME"
+          echo "target_branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
+
       - name: Create or checkout release branch
         env:
-          RELEASE_BRANCH: ${{ inputs.release_branch }}
+          RELEASE_BRANCH: ${{ steps.determine_version.outputs.target_branch }}
         run: |
           if git show-ref --quiet "refs/heads/$RELEASE_BRANCH" || git show-ref --quiet "refs/remotes/origin/$RELEASE_BRANCH"; then
             echo "Branch $RELEASE_BRANCH exists. Checking out."
@@ -121,7 +229,7 @@ jobs:
 
       - name: Run release preparation pipeline
         env:
-          VERSION: ${{ inputs.release_version }}
+          VERSION: ${{ steps.determine_version.outputs.target_version }}
           DATE: ${{ inputs.release_date }}
         run: |
           DATE_ARG=""
@@ -141,8 +249,8 @@ jobs:
       - name: Commit and push changes
         id: commit_changes
         env:
-          RELEASE_BRANCH: ${{ inputs.release_branch }}
-          VERSION: ${{ inputs.release_version }}
+          RELEASE_BRANCH: ${{ steps.determine_version.outputs.target_branch }}
+          VERSION: ${{ steps.determine_version.outputs.target_version }}
         run: |
           if [ -n "$(git status --porcelain)" ]; then
             git add -A
@@ -159,9 +267,9 @@ jobs:
         id: cpr
         with:
           base: ${{ inputs.target_pr_base }}
-          branch: ${{ inputs.release_branch }}
-          title: "Release: ${{ inputs.release_version }}"
-          body: "## Release for GiveWP ${{ inputs.release_version }}"
+          branch: ${{ steps.determine_version.outputs.target_branch }}
+          title: "Release: ${{ steps.determine_version.outputs.target_version }}"
+          body: "## Release for GiveWP ${{ steps.determine_version.outputs.target_version }}"
           labels: "release, automation"
           assignees: ${{ github.actor }}
           reviewers: ${{ inputs.reviewers }}
@@ -169,4 +277,4 @@ jobs:
       - name: Report Summary
         run: |
           echo "## Release Prep Completed" >> $GITHUB_STEP_SUMMARY
-          echo "Release branch \`${{ inputs.release_branch }}\` prepared for version \`${{ inputs.release_version }}\`." >> $GITHUB_STEP_SUMMARY
+          echo "Release branch \`${{ steps.determine_version.outputs.target_branch }}\` prepared for version \`${{ steps.determine_version.outputs.target_version }}\`." >> $GITHUB_STEP_SUMMARY
