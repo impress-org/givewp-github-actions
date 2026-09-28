@@ -58,6 +58,44 @@ on:
         required: false
         default: "jonwaldstein,pauloiankoski,glaubersilva"
         type: string
+  workflow_dispatch:
+    inputs:
+      version_bump_type:
+        description: "Type of version bump"
+        required: true
+        type: choice
+        default: "automatic"
+        options:
+          - automatic
+          - major (X.x.x)
+          - feature (x.X.x)
+          - maintenance (x.x.X)
+          - hotfix (x.x.x.X)
+      release_version:
+        description: "Specific target version (optional; overrides bump type if entered)"
+        required: false
+        default: ""
+        type: string
+      release_branch:
+        description: "Name of the release branch (optional; e.g. release/4.17.0 or release/M26.mew. Defaults to release/<version>)"
+        required: false
+        default: ""
+        type: string
+      base_branch:
+        description: "Base branch to branch off of"
+        required: false
+        default: "develop"
+        type: string
+      release_date:
+        description: "Release date (YYYY-MM-DD or 'today')"
+        required: false
+        default: "today"
+        type: string
+      target_pr_base:
+        description: "Target base branch for the Release PR"
+        required: false
+        default: "master"
+        type: string
 
 jobs:
   prepare-release:
@@ -69,14 +107,21 @@ jobs:
 
     steps:
       - name: Print inputs
+        env:
+          BUMP_TYPE: ${{ inputs.version_bump_type }}
+          REL_VERSION: ${{ inputs.release_version }}
+          REL_BRANCH: ${{ inputs.release_branch }}
+          BASE_BRANCH: ${{ inputs.base_branch }}
+          PR_BASE: ${{ inputs.target_pr_base }}
+          REL_DATE: ${{ inputs.release_date }}
         run: |
           echo "### Release Prep Inputs" >> $GITHUB_STEP_SUMMARY
-          echo "- Version Bump Type: \`${{ inputs.version_bump_type }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- Specific Version: \`${{ inputs.release_version }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- Release Branch: \`${{ inputs.release_branch }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- Base Branch: \`${{ inputs.base_branch }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- Target PR Base: \`${{ inputs.target_pr_base }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- Release Date: \`${{ inputs.release_date }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Version Bump Type: \`${BUMP_TYPE}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Specific Version: \`${REL_VERSION}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Release Branch: \`${REL_BRANCH}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Base Branch: \`${BASE_BRANCH}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Target PR Base: \`${PR_BASE}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Release Date: \`${REL_DATE}\`" >> $GITHUB_STEP_SUMMARY
 
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -101,25 +146,12 @@ jobs:
         with:
           node-version: ${{ inputs.node_version }}
 
-      - name: Install composer dependencies
-        if: ${{ inputs.install_composer_packages }}
-        run: |
-          if [ -f "composer.json" ]; then
-            composer install --prefer-dist --no-progress
-          fi
-
-      - name: Install npm dependencies
-        if: ${{ inputs.install_npm_packages }}
-        run: |
-          if [ -f "package.json" ]; then
-            npm ci --prefer-offline --no-audit || npm install
-          fi
-
       - name: Determine Version
         id: determine_version
         env:
           INPUT_VERSION: ${{ inputs.release_version }}
           BUMP_TYPE_INPUT: ${{ inputs.version_bump_type }}
+          INPUT_BRANCH: ${{ inputs.release_branch }}
         run: |
           # 1. Detect current version from root plugin file, package.json, or .puprc
           CURRENT_VERSION=""
@@ -143,8 +175,12 @@ jobs:
 
           echo "Current detected version: $CURRENT_VERSION"
 
-          # If an explicit version was provided, use it directly
+          # If an explicit version was provided, validate and use it directly
           if [ -n "$INPUT_VERSION" ]; then
+            if ! [[ "$INPUT_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+              echo "Error: invalid release_version '$INPUT_VERSION'. Expected format: N.N.N or N.N.N.N" >&2
+              exit 1
+            fi
             TARGET_VERSION="$INPUT_VERSION"
           else
             BUMP_TYPE="${BUMP_TYPE_INPUT%% *}"
@@ -208,7 +244,7 @@ jobs:
           echo "target_version=$TARGET_VERSION" >> $GITHUB_OUTPUT
 
           # Determine release branch name
-          BRANCH_NAME="${{ inputs.release_branch }}"
+          BRANCH_NAME="$INPUT_BRANCH"
           if [ -z "$BRANCH_NAME" ]; then
             BRANCH_NAME="release/$TARGET_VERSION"
           fi
@@ -225,6 +261,20 @@ jobs:
           else
             echo "Creating branch $RELEASE_BRANCH from current ref."
             git checkout -b "$RELEASE_BRANCH"
+          fi
+
+      - name: Install composer dependencies
+        if: ${{ inputs.install_composer_packages }}
+        run: |
+          if [ -f "composer.json" ]; then
+            composer install --prefer-dist --no-progress
+          fi
+
+      - name: Install npm dependencies
+        if: ${{ inputs.install_npm_packages }}
+        run: |
+          if [ -f "package.json" ]; then
+            npm ci --prefer-offline --no-audit
           fi
 
       - name: Run release preparation pipeline
@@ -246,28 +296,13 @@ jobs:
             fi
           fi
 
-      - name: Commit and push changes
-        id: commit_changes
-        env:
-          RELEASE_BRANCH: ${{ steps.determine_version.outputs.target_branch }}
-          VERSION: ${{ steps.determine_version.outputs.target_version }}
-        run: |
-          if [ -n "$(git status --porcelain)" ]; then
-            git add -A
-            git commit -m "chore(release): prepare release ${VERSION}"
-            git push origin "$RELEASE_BRANCH"
-            echo "has_changes=true" >> $GITHUB_OUTPUT
-          else
-            echo "No changes detected to commit."
-            echo "has_changes=false" >> $GITHUB_OUTPUT
-          fi
-
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v7
         id: cpr
         with:
           base: ${{ inputs.target_pr_base }}
           branch: ${{ steps.determine_version.outputs.target_branch }}
+          commit-message: "chore(release): prepare release ${{ steps.determine_version.outputs.target_version }}"
           title: "Release: ${{ steps.determine_version.outputs.target_version }}"
           body: "## Release for GiveWP ${{ steps.determine_version.outputs.target_version }}"
           labels: "release, automation"
@@ -275,6 +310,9 @@ jobs:
           reviewers: ${{ inputs.reviewers }}
 
       - name: Report Summary
+        env:
+          TARGET_VERSION: ${{ steps.determine_version.outputs.target_version }}
+          TARGET_BRANCH: ${{ steps.determine_version.outputs.target_branch }}
         run: |
           echo "## Release Prep Completed" >> $GITHUB_STEP_SUMMARY
-          echo "Release branch \`${{ steps.determine_version.outputs.target_branch }}\` prepared for version \`${{ steps.determine_version.outputs.target_version }}\`." >> $GITHUB_STEP_SUMMARY
+          echo "Release branch \`${TARGET_BRANCH}\` prepared for version \`${TARGET_VERSION}\`." >> $GITHUB_STEP_SUMMARY
