@@ -58,44 +58,6 @@ on:
         required: false
         default: "jonwaldstein,pauloiankoski,glaubersilva"
         type: string
-  workflow_dispatch:
-    inputs:
-      version_bump_type:
-        description: "Type of version bump"
-        required: true
-        type: choice
-        default: "automatic"
-        options:
-          - automatic
-          - major (X.x.x)
-          - feature (x.X.x)
-          - maintenance (x.x.X)
-          - hotfix (x.x.x.X)
-      release_version:
-        description: "Specific target version (optional; overrides bump type if entered)"
-        required: false
-        default: ""
-        type: string
-      release_branch:
-        description: "Name of the release branch (optional; e.g. release/4.17.0 or release/M26.mew. Defaults to release/<version>)"
-        required: false
-        default: ""
-        type: string
-      base_branch:
-        description: "Base branch to branch off of"
-        required: false
-        default: "develop"
-        type: string
-      release_date:
-        description: "Release date (YYYY-MM-DD or 'today')"
-        required: false
-        default: "today"
-        type: string
-      target_pr_base:
-        description: "Target base branch for the Release PR"
-        required: false
-        default: "master"
-        type: string
 
 jobs:
   prepare-release:
@@ -296,18 +258,52 @@ jobs:
             fi
           fi
 
+      - name: Commit and push release branch
+        env:
+          RELEASE_BRANCH: ${{ steps.determine_version.outputs.target_branch }}
+          TARGET_VERSION: ${{ steps.determine_version.outputs.target_version }}
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git add -A
+            git commit -m "chore(release): prepare release ${TARGET_VERSION}"
+            git push origin "$RELEASE_BRANCH"
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "No changes detected to commit."
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v7
-        id: cpr
-        with:
-          base: ${{ inputs.target_pr_base }}
-          branch: ${{ steps.determine_version.outputs.target_branch }}
-          commit-message: "chore(release): prepare release ${{ steps.determine_version.outputs.target_version }}"
-          title: "Release: ${{ steps.determine_version.outputs.target_version }}"
-          body: "## Release for GiveWP ${{ steps.determine_version.outputs.target_version }}"
-          labels: "release, automation"
-          assignees: ${{ github.actor }}
-          reviewers: ${{ inputs.reviewers }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_BRANCH: ${{ steps.determine_version.outputs.target_branch }}
+          TARGET_VERSION: ${{ steps.determine_version.outputs.target_version }}
+          PR_BASE: ${{ inputs.target_pr_base }}
+          REVIEWERS: ${{ inputs.reviewers }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          PR_TITLE="Release: ${TARGET_VERSION}"
+          PR_BODY="## Release for GiveWP ${TARGET_VERSION}"
+
+          if gh pr list --head "$TARGET_BRANCH" --base "$PR_BASE" --state open --json number | grep -q '"number"'; then
+            echo "PR already exists for $TARGET_BRANCH -> $PR_BASE, skipping creation."
+          else
+            gh pr create \
+              --head "$TARGET_BRANCH" \
+              --base "$PR_BASE" \
+              --title "$PR_TITLE" \
+              --body "$PR_BODY" \
+              --label "release,automation" \
+              --assignee "$ACTOR"
+
+            IFS=',' read -ra REVIEWER_ARRAY <<< "$REVIEWERS"
+            for reviewer in "${REVIEWER_ARRAY[@]}"; do
+              reviewer=$(echo "$reviewer" | xargs)
+              if [ -n "$reviewer" ]; then
+                gh pr edit --add-reviewer "$reviewer" || true
+              fi
+            done
+          fi
 
       - name: Report Summary
         env:
