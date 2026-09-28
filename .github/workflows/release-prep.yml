@@ -266,12 +266,12 @@ jobs:
           if [ -n "$(git status --porcelain)" ]; then
             git add -A
             git commit -m "chore(release): prepare release ${TARGET_VERSION}"
-            git push origin "$RELEASE_BRANCH"
-            echo "has_changes=true" >> $GITHUB_OUTPUT
           else
             echo "No changes detected to commit."
-            echo "has_changes=false" >> $GITHUB_OUTPUT
           fi
+          # Always push the branch so gh pr create --head can find it,
+          # even when the release-prep script made no file changes.
+          git push origin "$RELEASE_BRANCH"
 
       - name: Create Pull Request
         env:
@@ -288,19 +288,30 @@ jobs:
           if gh pr list --head "$TARGET_BRANCH" --base "$PR_BASE" --state open --json number | grep -q '"number"'; then
             echo "PR already exists for $TARGET_BRANCH -> $PR_BASE, skipping creation."
           else
-            gh pr create \
+            # Create the PR without --label to avoid failure when labels
+            # are absent in the caller repository; apply labels only if they exist.
+            PR_URL=$(gh pr create \
               --head "$TARGET_BRANCH" \
               --base "$PR_BASE" \
               --title "$PR_TITLE" \
               --body "$PR_BODY" \
-              --label "release,automation" \
-              --assignee "$ACTOR"
+              --assignee "$ACTOR")
 
+            # Apply labels only if they already exist in the repository.
+            for label in release automation; do
+              if gh label list --json name --limit 200 | grep -q "\"$label\""; then
+                gh pr edit "$PR_URL" --add-label "$label"
+              fi
+            done
+
+            # Request reviewers; a failure here is reported but does not
+            # abort the step, so the PR is still created.
             IFS=',' read -ra REVIEWER_ARRAY <<< "$REVIEWERS"
             for reviewer in "${REVIEWER_ARRAY[@]}"; do
               reviewer=$(echo "$reviewer" | xargs)
               if [ -n "$reviewer" ]; then
-                gh pr edit --add-reviewer "$reviewer" || true
+                gh pr edit "$PR_URL" --add-reviewer "$reviewer" || \
+                  echo "::warning::Failed to request reviewer '$reviewer' on PR $PR_URL"
               fi
             done
           fi
