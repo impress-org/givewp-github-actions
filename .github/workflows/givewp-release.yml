@@ -61,6 +61,10 @@ jobs:
     release:
         name: Build & Release Plugin
         runs-on: blacksmith-4vcpu-ubuntu-2404
+        permissions:
+            contents: write
+            pull-requests: write
+            repository-projects: write
 
         steps:
             -   uses: actions/checkout@v4
