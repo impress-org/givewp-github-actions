@@ -239,6 +239,23 @@ jobs:
             npm ci --prefer-offline --no-audit
           fi
 
+      # Centralizes the GiveWP legacy changelog writing strategy so add-ons do
+      # not each commit a copy. changelogger only accepts a local file path for
+      # a strategy, so the canonical file is fetched into the path the add-on's
+      # package.json references (bin/lib/changelog-strategy.js). Give Core keeps
+      # its own committed copy (it is the source this file is seeded from).
+      - name: Prepare changelog strategy
+        env:
+          STRATEGY_URL: https://raw.githubusercontent.com/impress-org/givewp-github-actions/master/.github/changelog-strategy.js
+        run: |
+          if [ -f "bin/lib/changelog-strategy.js" ]; then
+            echo "Strategy already present in the repository; leaving it untouched."
+          else
+            mkdir -p bin/lib
+            curl -fsSL -o bin/lib/changelog-strategy.js "$STRATEGY_URL"
+            echo "Fetched canonical changelog strategy."
+          fi
+
       - name: Run release preparation pipeline
         env:
           VERSION: ${{ steps.determine_version.outputs.target_version }}
@@ -251,11 +268,11 @@ jobs:
 
           if [ -f "bin/release-prep.sh" ]; then
             bin/release-prep.sh "$VERSION" $DATE_ARG
+          elif [ -f "bin/write-changelog.sh" ]; then
+            bin/write-changelog.sh "$VERSION" $DATE_ARG
           else
-            echo "No bin/release-prep.sh found; compiling changelog directly if write-changelog.sh exists..."
-            if [ -f "bin/write-changelog.sh" ]; then
-              bin/write-changelog.sh "$VERSION" $DATE_ARG
-            fi
+            echo "Running changelogger write directly (add-on without bin/ scripts)."
+            npx --no-install changelogger write --overwrite-version "$VERSION" $DATE_ARG
           fi
 
       - name: Commit and push release branch
@@ -263,6 +280,12 @@ jobs:
           RELEASE_BRANCH: ${{ steps.determine_version.outputs.target_branch }}
           TARGET_VERSION: ${{ steps.determine_version.outputs.target_version }}
         run: |
+          # Drop the strategy only when it was injected by this workflow (i.e.
+          # not tracked). Give Core commits its own copy; it is left in place.
+          if ! git ls-files --error-unmatch bin/lib/changelog-strategy.js >/dev/null 2>&1; then
+            rm -f bin/lib/changelog-strategy.js
+          fi
+
           if [ -n "$(git status --porcelain)" ]; then
             git add -A
             git commit -m "chore(release): prepare release ${TARGET_VERSION}"
