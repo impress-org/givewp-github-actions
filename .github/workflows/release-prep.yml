@@ -147,23 +147,25 @@ jobs:
           else
             BUMP_TYPE="${BUMP_TYPE_INPUT%% *}"
 
-            # If automatic, inspect changelog/ directory to pick the highest bump level
+            # For automatic, derive the bump from the highest `significance`
+            # declared in the changelog entries (changelogger's own concept),
+            # not from the entry `type`. major > minor > patch.
             if [ "$BUMP_TYPE" = "automatic" ]; then
-              echo "Inspecting changelog/ for highest change type..."
-              if [ -d "changelog" ] && [ -n "$(find changelog -name '*.yml' -o -name '*.yaml' 2>/dev/null)" ]; then
-                if grep -riq "^type:\s*['\"]*major" changelog/; then
+              echo "Inspecting changelog/ for highest change significance..."
+              # `|| true` keeps a no-match grep from tripping errexit.
+              HAS_CHANGES=$(find changelog -type f \( -name '*.yml' -o -name '*.yaml' \) 2>/dev/null | head -n 1 || true)
+              if [ -n "$HAS_CHANGES" ]; then
+                if grep -rEq "^significance:[[:space:]]*['\"]?major" changelog/; then
                   BUMP_TYPE="major"
-                elif grep -riq "^type:\s*['\"]*\(feature\|feat\)" changelog/; then
+                elif grep -rEq "^significance:[[:space:]]*['\"]?minor" changelog/; then
                   BUMP_TYPE="feature"
-                elif grep -riq "^type:\s*['\"]*\(enhancement\|tweak\|fix\|security\)" changelog/; then
-                  BUMP_TYPE="maintenance"
                 else
                   BUMP_TYPE="maintenance"
                 fi
               else
                 BUMP_TYPE="maintenance"
               fi
-              echo "Auto-detected bump type: $BUMP_TYPE"
+              echo "Auto-detected bump type from significance: $BUMP_TYPE"
             fi
 
             IFS='.' read -r -a parts <<< "$CURRENT_VERSION"
@@ -180,8 +182,14 @@ jobs:
                 unset parts[3]
                 ;;
               maintenance)
-                parts[2]=$((parts[2] + 1))
-                unset parts[3]
+                # A patch on a version that already carries a hotfix increments
+                # the hotfix, matching changelogger's stellarwp versioning.
+                if [ -n "${parts[3]}" ] && [ "${parts[3]}" -gt 0 ]; then
+                  parts[3]=$((parts[3] + 1))
+                else
+                  parts[2]=$((parts[2] + 1))
+                  unset parts[3]
+                fi
                 ;;
               hotfix)
                 if [ -z "${parts[3]}" ]; then
