@@ -51,13 +51,6 @@ jobs:
               with:
                   ref: ${{ inputs.ref }}
 
-            - name: Install composer dependencies
-              uses: php-actions/composer@v6
-              if: ${{ inputs.install_composer_packages }}
-              with:
-                  php_version: 7.4
-                  dev: no
-
             - uses: actions/setup-node@v4
               with:
                   node-version: "18"

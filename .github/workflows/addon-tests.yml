@@ -94,23 +94,11 @@ jobs:
 
             # @link https://github.com/spatie/laravel-activitylog/blob/master/.github/workflows/run-tests.yml
             - name: Set Up PHP for build
-              uses: shivammathur/setup-php@v2
+              uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
               with:
                   php-version: 7.4
                   extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, mysql, mysqli, pdo_mysql, bcmath, soap, intl, gd, exif, iconv, imagick, fileinfo
                   coverage: none
-
-            # Composer is asked where its download cache is, because the answer depends on the
-            # runner. GiveWP is always installed on the same PHP, so every job shares one cache.
-            - name: Find the Composer cache
-              id: composer-cache
-              run: echo "dir=$(composer config --global cache-files-dir)" >> "$GITHUB_OUTPUT"
-
-            - name: Cache GiveWP dependencies
-              uses: actions/cache@v6
-              with:
-                  path: ${{ steps.composer-cache.outputs.dir }}
-                  key: composer-${{ hashFiles('give/composer.lock') }}
 
             - name: Store MySQL details in environment
               run: |
@@ -137,8 +125,10 @@ jobs:
                   sudo apt-get update
                   sudo apt-get install -y subversion
 
-            - name: Update Composer
-              run: sudo composer self-update
+            - name: Install composer dependencies for GiveWP Core
+              uses: ramsey/composer-install@26d8a556604053a9612623447203a691f406fbe6 # v4
+              with:
+                  working-directory: "./give"
 
             - name: Resolve the WordPress version
               working-directory: "./give"
@@ -154,12 +144,10 @@ jobs:
 
             - name: Set UP GiveWP Core
               working-directory: "./give"
-              run: |
-                  composer install --no-progress --no-interaction
-                  bash tests/includes/bin/install.sh wordpress_develop_test root ${{ env.mysql_pass }} 127.0.0.1:${{ env.mysql_port }} ${{ env.wordpress_version }}
+              run: bash tests/includes/bin/install.sh wordpress_develop_test root ${{ env.mysql_pass }} 127.0.0.1:${{ env.mysql_port }} ${{ env.wordpress_version }}
 
             - name: Set Up PHP for testing
-              uses: shivammathur/setup-php@v2
+              uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
               with:
                   php-version: ${{ matrix.php }}
                   extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, mysql, mysqli, pdo_mysql, bcmath, soap, intl, gd, exif, iconv, imagick, fileinfo
@@ -170,9 +158,9 @@ jobs:
               run: composer dump-autoload
 
             - name: Install composer dependencies for Addon
-              uses: php-actions/composer@v6
+              uses: ramsey/composer-install@26d8a556604053a9612623447203a691f406fbe6 # v4
               with:
-                  working_dir: ./${{ inputs.addon_slug }}
+                  working-directory: ./${{ inputs.addon_slug }}
 
             - name: Setup Node
               uses: actions/setup-node@v7
