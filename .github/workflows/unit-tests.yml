@@ -43,11 +43,6 @@ jobs:
         steps:
             # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
             - uses: actions/checkout@v4
-            - name: Cache dependencies
-              uses: actions/cache@v3
-              with:
-                  path: ~/.composer/cache/files
-                  key: dependencies-php-${{ matrix.php }}-composer-${{ hashFiles('composer.json') }}
 
             # @link https://github.com/spatie/laravel-activitylog/blob/master/.github/workflows/run-tests.yml
             - name: Set Up PHP
@@ -58,9 +53,7 @@ jobs:
                   coverage: none
 
             - name: Install composer dependencies
-              uses: php-actions/composer@v5
-              with:
-                  php_version: ${{ matrix.php }}
+              uses: ramsey/composer-install@v4
 
             - name: Store MySQL details in environment
               run: |

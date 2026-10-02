@@ -23,12 +23,17 @@ jobs:
         steps:
             -   uses: actions/checkout@v4
 
+            -   name: Set up PHP
+                uses: shivammathur/setup-php@v2
+                with:
+                    php-version: 7.4
+                    coverage: none
+
             -   name: Install composer dependencies
-                uses: php-actions/composer@v6
+                uses: ramsey/composer-install@v4
                 if: ${{ inputs.install_composer_packages }}
                 with:
-                    php_version: 7.4
-                    dev: no
+                    composer-options: --no-dev
 
             -   uses: actions/setup-node@v4
                 with:
