@@ -40,11 +40,18 @@ jobs:
     test:
         # The type of runner that the job will run on
         runs-on: blacksmith-4vcpu-ubuntu-2404
+
+        # The job reads the two checkouts and runs the test suite, nothing else.
+        permissions:
+            contents: read
+
         strategy:
             matrix:
                 php: ${{ fromJson(inputs.php_matrix) }}
                 mysql: ["mysql:5.6", "mysql:8.0"]
-                wordpress: ["6.6", latest]
+                # `minimum` is the "Requires at least" line of GiveWP's readme.txt. An add-on cannot
+                # run on an older WordPress than the GiveWP it needs, so that is the real floor.
+                wordpress: [minimum, latest]
 
         services:
             mysql56:
@@ -71,22 +78,19 @@ jobs:
         steps:
             # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
             - name: Checkout Addon
-              uses: actions/checkout@v4
+              uses: actions/checkout@v7
               with:
                   path: ${{ inputs.addon_slug }}
+                  # Nothing here pushes over git, and the job goes on to run third-party actions.
+                  persist-credentials: false
 
             - name: Check out GiveWP ${{ inputs.givewp_branch }} branch
-              uses: actions/checkout@v4
+              uses: actions/checkout@v7
               with:
                   repository: impress-org/givewp
                   ref: ${{ inputs.givewp_branch }}
                   path: "give"
-
-            - name: Cache dependencies
-              uses: actions/cache@v3
-              with:
-                  path: ~/.composer/cache/files
-                  key: dependencies-php-${{ matrix.php }}-composer-${{ hashFiles('composer.json') }}
+                  persist-credentials: false
 
             # @link https://github.com/spatie/laravel-activitylog/blob/master/.github/workflows/run-tests.yml
             - name: Set Up PHP for build
@@ -96,20 +100,32 @@ jobs:
                   extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, mysql, mysqli, pdo_mysql, bcmath, soap, intl, gd, exif, iconv, imagick, fileinfo
                   coverage: none
 
+            # Composer is asked where its download cache is, because the answer depends on the
+            # runner. GiveWP is always installed on the same PHP, so every job shares one cache.
+            - name: Find the Composer cache
+              id: composer-cache
+              run: echo "dir=$(composer config --global cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+            - name: Cache GiveWP dependencies
+              uses: actions/cache@v6
+              with:
+                  path: ${{ steps.composer-cache.outputs.dir }}
+                  key: composer-${{ hashFiles('give/composer.lock') }}
+
             - name: Store MySQL details in environment
               run: |
                   case "$MYSQL_VERSION" in
                     'mysql:5.6')
-                      MYSQL_PORT=${{ job.services.mysql56.ports[3306] }}
-                      MYSQL_PASS=N0Tweak!@123!
+                      MYSQL_PORT="${{ job.services.mysql56.ports['3306'] }}"
+                      MYSQL_PASS='N0Tweak!@123!'
                       ;;
                     'mysql:8.0')
-                      MYSQL_PORT=${{ job.services.mysql80.ports[3306] }}
-                      MYSQL_PASS=N0Tweak!@123!
+                      MYSQL_PORT="${{ job.services.mysql80.ports['3306'] }}"
+                      MYSQL_PASS='N0Tweak!@123!'
                       ;;
                   esac
-                  echo "mysql_port=$MYSQL_PORT" >> $GITHUB_ENV
-                  echo "mysql_pass=$MYSQL_PASS" >> $GITHUB_ENV
+                  echo "mysql_port=$MYSQL_PORT" >> "$GITHUB_ENV"
+                  echo "mysql_pass=$MYSQL_PASS" >> "$GITHUB_ENV"
               env:
                   MYSQL_VERSION: ${{ matrix.mysql }}
 
@@ -124,11 +140,23 @@ jobs:
             - name: Update Composer
               run: sudo composer self-update
 
+            - name: Resolve the WordPress version
+              working-directory: "./give"
+              run: |
+                  version=latest
+                  if [ "$WORDPRESS" = minimum ]; then
+                      version=$(sed -n 's/^Requires at least: *//p' readme.txt)
+                      [[ "$version" =~ ^[0-9]+\.[0-9]+$ ]] || { echo "::error::No usable \"Requires at least\" in GiveWP's readme.txt: '$version'"; exit 1; }
+                  fi
+                  echo "wordpress_version=$version" >> "$GITHUB_ENV"
+              env:
+                  WORDPRESS: ${{ matrix.wordpress }}
+
             - name: Set UP GiveWP Core
               working-directory: "./give"
               run: |
                   composer install --no-progress --no-interaction
-                  bash tests/includes/bin/install.sh wordpress_develop_test root ${{ env.mysql_pass }} 127.0.0.1:${{ env.mysql_port }} ${{ matrix.wordpress }}
+                  bash tests/includes/bin/install.sh wordpress_develop_test root ${{ env.mysql_pass }} 127.0.0.1:${{ env.mysql_port }} ${{ env.wordpress_version }}
 
             - name: Set Up PHP for testing
               uses: shivammathur/setup-php@v2
@@ -147,7 +175,7 @@ jobs:
                   working_dir: ./${{ inputs.addon_slug }}
 
             - name: Setup Node
-              uses: actions/setup-node@v4
+              uses: actions/setup-node@v7
               if: ${{ inputs.install_npm_packages }}
               with:
                   node-version: 18
