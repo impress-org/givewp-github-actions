@@ -10,7 +10,7 @@ runs:
     using: "composite"
     steps:
         -   name: Deploy POT file to translations.stellarwp.com
-            uses: burnett01/rsync-deployments@4.1
+            uses: burnett01/rsync-deployments@v9
             with:
                 switches: -avz --omit-dir-times --no-perms -e 'ssh -o IdentitiesOnly=yes'
                 path: languages/${{ inputs.plugin_slug }}.pot
@@ -20,7 +20,7 @@ runs:
                 remote_key: ${{ env.TRANSLATIONS_DEPLOY_SSH_KEY }}
 
         -   name: SSH to Translations StellarWP Website
-            uses: appleboy/ssh-action@master
+            uses: appleboy/ssh-action@v1
             with:
                 host: ${{ env.TRANSLATIONS_DEPLOY_HOST }}
                 username: ${{ env.TRANSLATIONS_DEPLOY_USER }}

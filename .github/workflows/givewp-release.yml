@@ -67,7 +67,7 @@ jobs:
             repository-projects: write
 
         steps:
-            -   uses: actions/checkout@v4
+            -   uses: actions/checkout@v7
 
             -   name: Set up PHP
                 uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
@@ -81,15 +81,9 @@ jobs:
                 with:
                     composer-options: --no-dev
 
-            -   uses: actions/setup-node@v4
+            -   uses: actions/setup-node@v7
                 with:
                     node-version: '18'
-
-            -   name: Install WP-CLI
-                run: |
-                    curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
-                    chmod +x wp-cli.phar
-                    mv wp-cli.phar /usr/local/bin/wp
 
             -   name: Install npm dependencies & build for translation
                 run: npm ci
@@ -98,13 +92,10 @@ jobs:
                 if: ${{ inputs.install_npm_packages }}
                 run: npm run build
 
-            -   name: Generate pot file
-                run: |
-                    if [ -f "webpack.config.js" ]; then
-                        php -d xdebug.mode=off "$(which wp)" i18n make-pot ${{github.workspace}} ${{github.workspace}}/languages/${{ inputs.plugin_slug }}.pot --exclude="$(cat .distignore | tr "\n" "," | sed 's/,$/ /' | tr " " "\n"),*.js.map"
-                    else
-                        php -d xdebug.mode=off "$(which wp)" i18n make-pot ${{github.workspace}} ${{github.workspace}}/languages/${{ inputs.plugin_slug }}.pot --exclude="$(cat .distignore | tr "\n" "," | sed 's/,$/ /' | tr " " "\n"),src/*.js,src/**/*.js,*.js.map,blocks/**/*.js"
-                    fi
+            -   uses: impress-org/givewp-github-actions/.github/actions/generate-pot-file@master
+                with:
+                    plugin_path: ${{ github.workspace }}
+                    pot_path: ${{ github.workspace }}/languages/${{ inputs.plugin_slug }}.pot
 
             -   uses: impress-org/givewp-github-actions/.github/actions/generate-changelog@master
 
@@ -114,7 +105,7 @@ jobs:
                     zip -r "${GITHUB_WORKSPACE}/release.zip" ${{ inputs.plugin_slug }}
 
             -   name: Deploy plugin zip to GiveWP.com
-                uses: burnett01/rsync-deployments@4.1
+                uses: burnett01/rsync-deployments@v9
                 with:
                     switches: -avz --omit-dir-times --no-perms
                     path: release.zip
@@ -124,7 +115,7 @@ jobs:
                     remote_key: ${{ secrets.WEBSITE_DEPLOY_PRIVATE_KEY }}
 
             -   name: Deploy plugin readme to GiveWP.com
-                uses: burnett01/rsync-deployments@4.1
+                uses: burnett01/rsync-deployments@v9
                 with:
                     switches: -avz --omit-dir-times --no-perms
                     path: readme.txt
@@ -134,7 +125,7 @@ jobs:
                     remote_key: ${{ secrets.WEBSITE_DEPLOY_PRIVATE_KEY }}
 
             -   name: Update release version on website
-                uses: appleboy/ssh-action@master
+                uses: appleboy/ssh-action@v1
                 with:
                     host: ${{ secrets.WEBSITE_DEPLOY_HOST }}
                     username: ${{ secrets.WEBSITE_DEPLOY_USER }}
