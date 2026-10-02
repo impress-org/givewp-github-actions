@@ -47,7 +47,7 @@ jobs:
     generate-zip:
         runs-on: blacksmith-4vcpu-ubuntu-2404
         steps:
-            -   uses: actions/checkout@v4
+            -   uses: actions/checkout@v7
                 with:
                     ref: ${{ inputs.ref }}
 
@@ -125,7 +125,7 @@ jobs:
                 with:
                     composer-options: --no-dev
 
-            -   uses: actions/setup-node@v4
+            -   uses: actions/setup-node@v7
                 if: ${{ inputs.install_npm_packages }}
                 with:
                     node-version: '18'
@@ -141,16 +141,10 @@ jobs:
                 run: |
                     npm run build
 
-            -   name: Generate pot file
-                run: |
-                    curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
-                    chmod +x wp-cli.phar
-                    mv wp-cli.phar /usr/local/bin/wp
-                    if [ -f "webpack.config.js" ]; then
-                        php -d xdebug.mode=off "$(which wp)" i18n make-pot ${{github.workspace}} ${{github.workspace}}/languages/${{ inputs.plugin_slug }}.pot --exclude="$(cat .distignore | tr "\n" "," | sed 's/,$/ /' | tr " " "\n"),*.js.map"
-                    else
-                        php -d xdebug.mode=off "$(which wp)" i18n make-pot ${{github.workspace}} ${{github.workspace}}/languages/${{ inputs.plugin_slug }}.pot --exclude="$(cat .distignore | tr "\n" "," | sed 's/,$/ /' | tr " " "\n"),src/*.js,src/**/*.js,*.js.map,blocks/**/*.js"
-                    fi
+            -   uses: impress-org/givewp-github-actions/.github/actions/generate-pot-file@master
+                with:
+                    plugin_path: ${{ github.workspace }}
+                    pot_path: ${{ github.workspace }}/languages/${{ inputs.plugin_slug }}.pot
 
             -   name: Update version numbers in files for non production builds
                 if: ${{ inputs.production == 'false' && env.NEW_VERSION != '' }}
@@ -201,7 +195,7 @@ jobs:
                 run: mkdir artifact && mv ${{ inputs.plugin_slug }} artifact/
 
             -   name: Upload plugin artifact
-                uses: actions/upload-artifact@v4
+                uses: actions/upload-artifact@v7
                 with:
                     name: ${{ env.ZIP_NAME }}
                     path: artifact/

@@ -12,17 +12,16 @@ inputs:
 runs:
     using: "composite"
     steps:
-        -   name: Install npm dependencies & build for translation
-            shell: bash
-            run: |
-                npm install -g npm@7
-                npm ci
-                npm run build # Must be built for production before generating POT file.
-
         -   name: Generate POT file
             shell: bash
             run: |
                 curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
                 chmod +x wp-cli.phar
                 mv wp-cli.phar /usr/local/bin/wp
-                php -d xdebug.mode=off "$(which wp)" i18n make-pot ${{ inputs.plugin_path }} ${{ inputs.pot_path }} --exclude="$(cat .distignore | tr "\n" "," | sed 's/,$/ /' | tr " " "\n"),src/*.js,src/**/*.js,blocks/**/*.js"
+                # Assets must already be built. Plugins built with webpack ship their compiled JS, so only the
+                # .distignore list and source maps are excluded; otherwise the JS sources are scanned directly.
+                if [ -f "webpack.config.js" ]; then
+                    php -d xdebug.mode=off "$(which wp)" i18n make-pot ${{ inputs.plugin_path }} ${{ inputs.pot_path }} --exclude="$(cat .distignore | tr "\n" "," | sed 's/,$/ /' | tr " " "\n"),*.js.map"
+                else
+                    php -d xdebug.mode=off "$(which wp)" i18n make-pot ${{ inputs.plugin_path }} ${{ inputs.pot_path }} --exclude="$(cat .distignore | tr "\n" "," | sed 's/,$/ /' | tr " " "\n"),src/*.js,src/**/*.js,*.js.map,blocks/**/*.js"
+                fi

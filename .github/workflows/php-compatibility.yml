@@ -18,7 +18,7 @@ jobs:
                 testVersion: ${{ fromJson(inputs.test_versions) }} # The test versions should be strings to maintain formatting
 
         steps:
-            -   uses: actions/checkout@v4
+            -   uses: actions/checkout@v7
 
             -   name: Set up PHP
                 uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
