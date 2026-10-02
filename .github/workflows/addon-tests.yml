@@ -94,7 +94,7 @@ jobs:
 
             # @link https://github.com/spatie/laravel-activitylog/blob/master/.github/workflows/run-tests.yml
             - name: Set Up PHP for build
-              uses: shivammathur/setup-php@v2
+              uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
               with:
                   php-version: 7.4
                   extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, mysql, mysqli, pdo_mysql, bcmath, soap, intl, gd, exif, iconv, imagick, fileinfo
@@ -126,7 +126,7 @@ jobs:
                   sudo apt-get install -y subversion
 
             - name: Install composer dependencies for GiveWP Core
-              uses: ramsey/composer-install@v4
+              uses: ramsey/composer-install@26d8a556604053a9612623447203a691f406fbe6 # v4
               with:
                   working-directory: "./give"
 
@@ -147,7 +147,7 @@ jobs:
               run: bash tests/includes/bin/install.sh wordpress_develop_test root ${{ env.mysql_pass }} 127.0.0.1:${{ env.mysql_port }} ${{ env.wordpress_version }}
 
             - name: Set Up PHP for testing
-              uses: shivammathur/setup-php@v2
+              uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
               with:
                   php-version: ${{ matrix.php }}
                   extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, mysql, mysqli, pdo_mysql, bcmath, soap, intl, gd, exif, iconv, imagick, fileinfo
@@ -158,7 +158,7 @@ jobs:
               run: composer dump-autoload
 
             - name: Install composer dependencies for Addon
-              uses: ramsey/composer-install@v4
+              uses: ramsey/composer-install@26d8a556604053a9612623447203a691f406fbe6 # v4
               with:
                   working-directory: ./${{ inputs.addon_slug }}
 
