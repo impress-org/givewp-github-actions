@@ -44,12 +44,12 @@ jobs:
                     npm ci
                     npm run build
 
-            -   uses: impress-org/givewp-github-actions/.github/actions/generate-pot-file@master
+            -   uses: $/.github/actions/generate-pot-file
                 with:
                     plugin_path: ${{ github.workspace }}
                     pot_path: ${{ github.workspace }}/languages/${{ inputs.plugin_slug }}.pot
 
-            -   uses: impress-org/givewp-github-actions/.github/actions/generate-changelog@master
+            -   uses: $/.github/actions/generate-changelog
 
             -   name: Generate plugin artifact
                 run: |
