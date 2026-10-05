@@ -92,12 +92,12 @@ jobs:
                 if: ${{ inputs.install_npm_packages }}
                 run: npm run build
 
-            -   uses: impress-org/givewp-github-actions/.github/actions/generate-pot-file@master
+            -   uses: $/.github/actions/generate-pot-file
                 with:
                     plugin_path: ${{ github.workspace }}
                     pot_path: ${{ github.workspace }}/languages/${{ inputs.plugin_slug }}.pot
 
-            -   uses: impress-org/givewp-github-actions/.github/actions/generate-changelog@master
+            -   uses: $/.github/actions/generate-changelog
 
             -   name: Generate plugin artifact
                 run: |
@@ -144,7 +144,7 @@ jobs:
                     asset_name: ${{ inputs.zip_name }}.zip
                     asset_content_type: application/zip
 
-            -   uses: impress-org/givewp-github-actions/.github/actions/push-translations@master
+            -   uses: $/.github/actions/push-translations
                 if: ${{ inputs.push_translations }}
                 with:
                     plugin_slug: ${{ inputs.plugin_slug }}
