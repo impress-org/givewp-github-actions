@@ -1,356 +1,280 @@
 name: Release Prep
 
 on:
-  workflow_call:
-    inputs:
-      version_bump_type:
-        description: "Type of version bump"
-        required: false
-        default: "automatic"
-        type: string
-      release_version:
-        description: "Specific target version to release (optional; overrides 'Type of version bump' if provided)"
-        required: false
-        default: ""
-        type: string
-      release_branch:
-        description: "Name of the release branch to create/prepare (optional; e.g. release/4.17.0. If omitted, generated automatically from version)"
-        required: false
-        default: ""
-        type: string
-      base_branch:
-        description: "Base branch to branch off of (e.g. develop)"
-        required: false
-        default: "develop"
-        type: string
-      release_date:
-        description: "Release date (YYYY-MM-DD or 'today')"
-        required: false
-        default: "today"
-        type: string
-      target_pr_base:
-        description: "Target base branch for the Release PR (e.g. master)"
-        required: false
-        default: "master"
-        type: string
-      install_npm_packages:
-        description: "Whether npm ci needs to be run"
-        required: false
-        default: true
-        type: boolean
-      install_composer_packages:
-        description: "Whether composer install needs to be run"
-        required: false
-        default: true
-        type: boolean
-      php_version:
-        description: "PHP version to use"
-        required: false
-        default: "7.4"
-        type: string
-      node_version:
-        description: "Node.js version to use"
-        required: false
-        default: "20"
-        type: string
-      reviewers:
-        description: "Comma-separated list of reviewer usernames"
-        required: false
-        default: "jonwaldstein,pauloiankoski,glaubersilva"
-        type: string
+    workflow_call:
+        inputs:
+            version_bump_type:
+                description: "Type of version bump: automatic, major, feature, maintenance or hotfix"
+                required: false
+                default: "automatic"
+                type: string
+            release_version:
+                description: "Specific target version to release (optional; overrides 'Type of version bump' if provided)"
+                required: false
+                default: ""
+                type: string
+            release_branch:
+                description: "Name of the release branch to create/prepare (optional; e.g. release/4.17.0. If omitted, generated automatically from version)"
+                required: false
+                default: ""
+                type: string
+            base_branch:
+                description: "Base branch to branch off of (e.g. develop)"
+                required: false
+                default: "develop"
+                type: string
+            release_date:
+                description: "Release date (YYYY-MM-DD or 'today')"
+                required: false
+                default: "today"
+                type: string
+            target_pr_base:
+                description: "Target base branch for the Release PR (e.g. master)"
+                required: false
+                default: "master"
+                type: string
+            install_npm_packages:
+                description: "Whether npm ci needs to be run"
+                required: false
+                default: true
+                type: boolean
+            install_composer_packages:
+                description: "Whether composer install needs to be run"
+                required: false
+                default: true
+                type: boolean
+            php_version:
+                description: "PHP version to use"
+                required: false
+                default: "7.4"
+                type: string
+            node_version:
+                description: "Node.js version to use"
+                required: false
+                default: "20"
+                type: string
+            pup_version:
+                description: "stellarwp/pup release to use for the version bump and TBD replacement"
+                required: false
+                default: "2.0.0"
+                type: string
+            reviewers:
+                description: "Comma-separated list of reviewer usernames"
+                required: false
+                default: "jonwaldstein,pauloiankoski,glaubersilva"
+                type: string
 
 jobs:
-  prepare-release:
-    name: "Prepare Release Branch & PR"
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    permissions:
-      contents: write
-      pull-requests: write
+    prepare-release:
+        name: "Prepare Release Branch & PR"
+        runs-on: blacksmith-4vcpu-ubuntu-2404
+        permissions:
+            contents: write
+            pull-requests: write
 
-    steps:
-      - name: Print inputs
-        env:
-          BUMP_TYPE: ${{ inputs.version_bump_type }}
-          REL_VERSION: ${{ inputs.release_version }}
-          REL_BRANCH: ${{ inputs.release_branch }}
-          BASE_BRANCH: ${{ inputs.base_branch }}
-          PR_BASE: ${{ inputs.target_pr_base }}
-          REL_DATE: ${{ inputs.release_date }}
-        run: |
-          echo "### Release Prep Inputs" >> $GITHUB_STEP_SUMMARY
-          echo "- Version Bump Type: \`${BUMP_TYPE}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- Specific Version: \`${REL_VERSION}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- Release Branch: \`${REL_BRANCH}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- Base Branch: \`${BASE_BRANCH}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- Target PR Base: \`${PR_BASE}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- Release Date: \`${REL_DATE}\`" >> $GITHUB_STEP_SUMMARY
+        steps:
+            -   uses: actions/checkout@v7
+                with:
+                    ref: ${{ inputs.base_branch }}
+                    fetch-depth: 0
 
-      - name: Checkout repository
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ inputs.base_branch }}
-          fetch-depth: 0
+            -   name: Set up PHP
+                uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+                with:
+                    php-version: ${{ inputs.php_version }}
+                    coverage: none
 
-      - name: Set up Git configuration
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+            # pup bumps every file in .puprc paths.versions and replaces TBD placeholders in
+            # .puprc checks.tbd.dirs, so the same .puprc drives Give Core and every add-on.
+            -   name: Set up pup
+                id: current
+                env:
+                    PUP_VERSION: ${{ inputs.pup_version }}
+                run: |
+                    if [ ! -f .puprc ]; then
+                        echo "::error::No .puprc found. Release prep reads the version files (paths.versions) and TBD dirs (checks.tbd.dirs) from it."
+                        exit 1
+                    fi
 
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: ${{ inputs.php_version }}
-          extensions: mbstring, intl, json
-          coverage: none
+                    PUP="$RUNNER_TEMP/pup.phar"
+                    curl -fsSL -o "$PUP" "https://github.com/stellarwp/pup/releases/download/${PUP_VERSION}/pup.phar"
+                    # Keep PHP notices off stdout so get-version prints only the version.
+                    echo "PUP=php -d display_errors=stderr $PUP" >> $GITHUB_ENV
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: ${{ inputs.node_version }}
+                    VERSION=$(php -d display_errors=stderr "$PUP" get-version)
+                    [ "$VERSION" = "unknown" ] && VERSION=""
+                    echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Determine Version
-        id: determine_version
-        env:
-          INPUT_VERSION: ${{ inputs.release_version }}
-          BUMP_TYPE_INPUT: ${{ inputs.version_bump_type }}
-          INPUT_BRANCH: ${{ inputs.release_branch }}
-        run: |
-          # 1. Detect current version from root plugin file, package.json, or .puprc
-          CURRENT_VERSION=""
-          if [ -f "package.json" ]; then
-            CURRENT_VERSION=$(grep -Po '"version":\s*"\K[^"]+' package.json | head -n 1 || true)
-          fi
+            -   name: Determine version
+                id: version
+                env:
+                    CURRENT_VERSION: ${{ steps.current.outputs.version }}
+                    INPUT_VERSION: ${{ inputs.release_version }}
+                    BUMP_TYPE_INPUT: ${{ inputs.version_bump_type }}
+                    INPUT_BRANCH: ${{ inputs.release_branch }}
+                run: |
+                    if [ -n "$INPUT_VERSION" ]; then
+                        if ! [[ "$INPUT_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+                            echo "::error::Invalid release_version '$INPUT_VERSION'. Expected format: N.N.N or N.N.N.N"
+                            exit 1
+                        fi
+                        TARGET_VERSION="$INPUT_VERSION"
+                    else
+                        if [ -z "$CURRENT_VERSION" ]; then
+                            echo "::error::Could not detect the current version."
+                            exit 1
+                        fi
 
-          if [ -z "$CURRENT_VERSION" ]; then
-            for file in $(find . -maxdepth 1 -name "*.php" -type f | sort); do
-              CURRENT_VERSION=$(grep -Po '^\s*\*?\s*Version:\s*\K[0-9]+\.[0-9]+\.[0-9]+(?:\.[0-9]+)?' "$file" | head -n 1 || true)
-              if [ -n "$CURRENT_VERSION" ]; then
-                break
-              fi
-            done
-          fi
+                        # Callers forward dropdown labels like "feature (x.X.x)"; keep the first word.
+                        BUMP_TYPE="${BUMP_TYPE_INPUT%% *}"
 
-          if [ -z "$CURRENT_VERSION" ]; then
-            echo "Error: Could not detect current version." >> $GITHUB_STEP_SUMMARY
-            exit 1
-          fi
+                        # For automatic, derive the bump from the highest `significance` declared in the
+                        # changelog entries (changelogger's own concept), not from the entry `type`.
+                        # major > minor > patch. -s keeps a missing changelog/ dir from failing the step.
+                        if [ "$BUMP_TYPE" = "automatic" ]; then
+                            if grep -rEqs --include='*.yaml' "^significance:[[:space:]]*['\"]?major" changelog/; then
+                                BUMP_TYPE="major"
+                            elif grep -rEqs --include='*.yaml' "^significance:[[:space:]]*['\"]?minor" changelog/; then
+                                BUMP_TYPE="feature"
+                            else
+                                BUMP_TYPE="maintenance"
+                            fi
+                            echo "Auto-detected bump type from significance: $BUMP_TYPE"
+                        fi
 
-          echo "Current detected version: $CURRENT_VERSION"
+                        IFS='.' read -r -a parts <<< "$CURRENT_VERSION"
+                        case "$BUMP_TYPE" in
+                            major)
+                                parts=($((parts[0] + 1)) 0 0)
+                                ;;
+                            feature)
+                                parts=("${parts[0]}" $((parts[1] + 1)) 0)
+                                ;;
+                            maintenance)
+                                # A patch on a version that already carries a hotfix increments
+                                # the hotfix, matching changelogger's stellarwp versioning.
+                                if [ "${parts[3]:-0}" -gt 0 ]; then
+                                    parts[3]=$((parts[3] + 1))
+                                else
+                                    parts=("${parts[0]}" "${parts[1]}" $((parts[2] + 1)))
+                                fi
+                                ;;
+                            hotfix)
+                                parts[3]=$((${parts[3]:-0} + 1))
+                                ;;
+                            *)
+                                echo "::error::Unknown version_bump_type '$BUMP_TYPE'."
+                                exit 1
+                                ;;
+                        esac
 
-          # If an explicit version was provided, validate and use it directly
-          if [ -n "$INPUT_VERSION" ]; then
-            if ! [[ "$INPUT_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
-              echo "Error: invalid release_version '$INPUT_VERSION'. Expected format: N.N.N or N.N.N.N" >&2
-              exit 1
-            fi
-            TARGET_VERSION="$INPUT_VERSION"
-          else
-            BUMP_TYPE="${BUMP_TYPE_INPUT%% *}"
+                        TARGET_VERSION=$(IFS='.'; echo "${parts[*]}")
+                    fi
 
-            # For automatic, derive the bump from the highest `significance`
-            # declared in the changelog entries (changelogger's own concept),
-            # not from the entry `type`. major > minor > patch.
-            if [ "$BUMP_TYPE" = "automatic" ]; then
-              echo "Inspecting changelog/ for highest change significance..."
-              # `|| true` keeps a no-match grep from tripping errexit.
-              HAS_CHANGES=$(find changelog -type f \( -name '*.yml' -o -name '*.yaml' \) 2>/dev/null | head -n 1 || true)
-              if [ -n "$HAS_CHANGES" ]; then
-                if grep -rEq "^significance:[[:space:]]*['\"]?major" changelog/; then
-                  BUMP_TYPE="major"
-                elif grep -rEq "^significance:[[:space:]]*['\"]?minor" changelog/; then
-                  BUMP_TYPE="feature"
-                else
-                  BUMP_TYPE="maintenance"
-                fi
-              else
-                BUMP_TYPE="maintenance"
-              fi
-              echo "Auto-detected bump type from significance: $BUMP_TYPE"
-            fi
+                    echo "Current version: $CURRENT_VERSION, target version: $TARGET_VERSION"
+                    echo "target_version=$TARGET_VERSION" >> $GITHUB_OUTPUT
+                    echo "target_branch=${INPUT_BRANCH:-release/$TARGET_VERSION}" >> $GITHUB_OUTPUT
 
-            IFS='.' read -r -a parts <<< "$CURRENT_VERSION"
-            case "$BUMP_TYPE" in
-              major)
-                parts[0]=$((parts[0] + 1))
-                parts[1]=0
-                parts[2]=0
-                unset parts[3]
-                ;;
-              feature)
-                parts[1]=$((parts[1] + 1))
-                parts[2]=0
-                unset parts[3]
-                ;;
-              maintenance)
-                # A patch on a version that already carries a hotfix increments
-                # the hotfix, matching changelogger's stellarwp versioning.
-                if [ -n "${parts[3]}" ] && [ "${parts[3]}" -gt 0 ]; then
-                  parts[3]=$((parts[3] + 1))
-                else
-                  parts[2]=$((parts[2] + 1))
-                  unset parts[3]
-                fi
-                ;;
-              hotfix)
-                if [ -z "${parts[3]}" ]; then
-                  parts[3]=1
-                else
-                  parts[3]=$((parts[3] + 1))
-                fi
-                ;;
-              *)
-                parts[2]=$((parts[2] + 1))
-                unset parts[3]
-                ;;
-            esac
+            -   name: Create or checkout release branch
+                env:
+                    RELEASE_BRANCH: ${{ steps.version.outputs.target_branch }}
+                run: |
+                    # Checking out a branch that only exists on origin creates the tracking branch.
+                    git checkout "$RELEASE_BRANCH" 2>/dev/null || git checkout -b "$RELEASE_BRANCH"
 
-            TARGET_VERSION="${parts[0]}.${parts[1]}.${parts[2]}"
-            if [ -n "${parts[3]}" ]; then
-              TARGET_VERSION="$TARGET_VERSION.${parts[3]}"
-            fi
-          fi
+            -   name: Install composer dependencies
+                uses: ramsey/composer-install@26d8a556604053a9612623447203a691f406fbe6 # v4
+                if: ${{ inputs.install_composer_packages && hashFiles('composer.json') != '' }}
 
-          echo "Target version: $TARGET_VERSION"
-          echo "target_version=$TARGET_VERSION" >> $GITHUB_OUTPUT
+            -   uses: actions/setup-node@v7
+                with:
+                    node-version: ${{ inputs.node_version }}
 
-          # Determine release branch name
-          BRANCH_NAME="$INPUT_BRANCH"
-          if [ -z "$BRANCH_NAME" ]; then
-            BRANCH_NAME="release/$TARGET_VERSION"
-          fi
-          echo "Target branch: $BRANCH_NAME"
-          echo "target_branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
+            -   name: Install npm dependencies
+                if: ${{ inputs.install_npm_packages && hashFiles('package-lock.json') != '' }}
+                run: npm ci --prefer-offline --no-audit
 
-      - name: Create or checkout release branch
-        env:
-          RELEASE_BRANCH: ${{ steps.determine_version.outputs.target_branch }}
-        run: |
-          if git show-ref --quiet "refs/heads/$RELEASE_BRANCH" || git show-ref --quiet "refs/remotes/origin/$RELEASE_BRANCH"; then
-            echo "Branch $RELEASE_BRANCH exists. Checking out."
-            git checkout "$RELEASE_BRANCH" || git checkout -b "$RELEASE_BRANCH" "origin/$RELEASE_BRANCH"
-          else
-            echo "Creating branch $RELEASE_BRANCH from current ref."
-            git checkout -b "$RELEASE_BRANCH"
-          fi
+            # $/ resolves to this repository at the commit of this workflow, so the action always matches
+            # the release-prep revision the caller pinned.
+            -   uses: $/.github/actions/prepare-changelog-strategy
 
-      - name: Install composer dependencies
-        if: ${{ inputs.install_composer_packages }}
-        run: |
-          if [ -f "composer.json" ]; then
-            composer install --prefer-dist --no-progress
-          fi
+            -   name: Run release preparation pipeline
+                env:
+                    VERSION: ${{ steps.version.outputs.target_version }}
+                    DATE: ${{ inputs.release_date }}
+                run: |
+                    [ "$DATE" = "today" ] && DATE=""
 
-      - name: Install npm dependencies
-        if: ${{ inputs.install_npm_packages }}
-        run: |
-          if [ -f "package.json" ]; then
-            npm ci --prefer-offline --no-audit
-          fi
+                    # Same three steps as Give Core's bin/release-prep.sh.
+                    $PUP replace-version "$VERSION"
+                    $PUP replace-tbd "$VERSION"
+                    npx --no-install changelogger write --overwrite-version "$VERSION" ${DATE:+--date "$DATE"}
 
-      # Centralizes the GiveWP legacy changelog writing strategy so add-ons do
-      # not each commit a copy. changelogger only accepts a local file path for
-      # a strategy, so the canonical file is fetched into the path the add-on's
-      # package.json references (bin/lib/changelog-strategy.js). Give Core keeps
-      # its own committed copy (it is the source this file is seeded from).
-      - name: Prepare changelog strategy
-        env:
-          STRATEGY_URL: https://raw.githubusercontent.com/impress-org/givewp-github-actions/master/.github/changelog-strategy.js
-        run: |
-          if [ -f "bin/lib/changelog-strategy.js" ]; then
-            echo "Strategy already present in the repository; leaving it untouched."
-          else
-            mkdir -p bin/lib
-            curl -fsSL -o bin/lib/changelog-strategy.js "$STRATEGY_URL"
-            echo "Fetched canonical changelog strategy."
-          fi
+            -   name: Commit and push release branch
+                env:
+                    RELEASE_BRANCH: ${{ steps.version.outputs.target_branch }}
+                    TARGET_VERSION: ${{ steps.version.outputs.target_version }}
+                run: |
+                    git config user.name "github-actions[bot]"
+                    git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Run release preparation pipeline
-        env:
-          VERSION: ${{ steps.determine_version.outputs.target_version }}
-          DATE: ${{ inputs.release_date }}
-        run: |
-          DATE_ARG=""
-          if [ "$DATE" != "today" ] && [ -n "$DATE" ]; then
-            DATE_ARG="--date $DATE"
-          fi
+                    if [ -n "$(git status --porcelain)" ]; then
+                        git add -A
+                        git commit -m "chore(release): prepare release ${TARGET_VERSION}"
+                    else
+                        echo "No changes detected to commit."
+                    fi
+                    # Always push the branch so gh pr create --head can find it,
+                    # even when the release-prep script made no file changes.
+                    git push origin "$RELEASE_BRANCH"
 
-          if [ -f "bin/release-prep.sh" ]; then
-            bin/release-prep.sh "$VERSION" $DATE_ARG
-          elif [ -f "bin/write-changelog.sh" ]; then
-            bin/write-changelog.sh "$VERSION" $DATE_ARG
-          else
-            echo "Running changelogger write directly (add-on without bin/ scripts)."
-            npx --no-install changelogger write --overwrite-version "$VERSION" $DATE_ARG
-          fi
+            -   name: Create Pull Request
+                env:
+                    GH_TOKEN: ${{ github.token }}
+                    TARGET_BRANCH: ${{ steps.version.outputs.target_branch }}
+                    TARGET_VERSION: ${{ steps.version.outputs.target_version }}
+                    PR_BASE: ${{ inputs.target_pr_base }}
+                    REVIEWERS: ${{ inputs.reviewers }}
+                    ACTOR: ${{ github.actor }}
+                    REPO_NAME: ${{ github.event.repository.name }}
+                run: |
+                    if [ "$(gh pr list --head "$TARGET_BRANCH" --base "$PR_BASE" --state open --json number --jq length)" != "0" ]; then
+                        echo "PR already exists for $TARGET_BRANCH -> $PR_BASE, skipping creation."
+                        exit 0
+                    fi
 
-      - name: Commit and push release branch
-        env:
-          RELEASE_BRANCH: ${{ steps.determine_version.outputs.target_branch }}
-          TARGET_VERSION: ${{ steps.determine_version.outputs.target_version }}
-        run: |
-          # Drop the strategy only when it was injected by this workflow (i.e.
-          # not tracked). Give Core commits its own copy; it is left in place.
-          if ! git ls-files --error-unmatch bin/lib/changelog-strategy.js >/dev/null 2>&1; then
-            rm -f bin/lib/changelog-strategy.js
-          fi
+                    # Create the PR without --label to avoid failure when labels
+                    # are absent in the caller repository; apply labels only if they exist.
+                    PR_URL=$(gh pr create \
+                        --head "$TARGET_BRANCH" \
+                        --base "$PR_BASE" \
+                        --title "Release: ${TARGET_VERSION}" \
+                        --body "## Release for ${REPO_NAME} ${TARGET_VERSION}" \
+                        --assignee "$ACTOR")
 
-          if [ -n "$(git status --porcelain)" ]; then
-            git add -A
-            git commit -m "chore(release): prepare release ${TARGET_VERSION}"
-          else
-            echo "No changes detected to commit."
-          fi
-          # Always push the branch so gh pr create --head can find it,
-          # even when the release-prep script made no file changes.
-          git push origin "$RELEASE_BRANCH"
+                    LABELS=$(gh label list --json name --limit 200 --jq '.[].name')
+                    for label in release automation; do
+                        if grep -qx "$label" <<< "$LABELS"; then
+                            gh pr edit "$PR_URL" --add-label "$label"
+                        fi
+                    done
 
-      - name: Create Pull Request
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TARGET_BRANCH: ${{ steps.determine_version.outputs.target_branch }}
-          TARGET_VERSION: ${{ steps.determine_version.outputs.target_version }}
-          PR_BASE: ${{ inputs.target_pr_base }}
-          REVIEWERS: ${{ inputs.reviewers }}
-          ACTOR: ${{ github.actor }}
-        run: |
-          PR_TITLE="Release: ${TARGET_VERSION}"
-          PR_BODY="## Release for GiveWP ${TARGET_VERSION}"
+                    # Request reviewers one at a time; a failure is reported but does not
+                    # abort the step, so the PR is still created.
+                    IFS=',' read -ra REVIEWER_ARRAY <<< "${REVIEWERS// /}"
+                    for reviewer in "${REVIEWER_ARRAY[@]}"; do
+                        gh pr edit "$PR_URL" --add-reviewer "$reviewer" || \
+                            echo "::warning::Failed to request reviewer '$reviewer' on PR $PR_URL"
+                    done
 
-          if gh pr list --head "$TARGET_BRANCH" --base "$PR_BASE" --state open --json number | grep -q '"number"'; then
-            echo "PR already exists for $TARGET_BRANCH -> $PR_BASE, skipping creation."
-          else
-            # Create the PR without --label to avoid failure when labels
-            # are absent in the caller repository; apply labels only if they exist.
-            PR_URL=$(gh pr create \
-              --head "$TARGET_BRANCH" \
-              --base "$PR_BASE" \
-              --title "$PR_TITLE" \
-              --body "$PR_BODY" \
-              --assignee "$ACTOR")
-
-            # Apply labels only if they already exist in the repository.
-            for label in release automation; do
-              if gh label list --json name --limit 200 | grep -q "\"$label\""; then
-                gh pr edit "$PR_URL" --add-label "$label"
-              fi
-            done
-
-            # Request reviewers; a failure here is reported but does not
-            # abort the step, so the PR is still created.
-            IFS=',' read -ra REVIEWER_ARRAY <<< "$REVIEWERS"
-            for reviewer in "${REVIEWER_ARRAY[@]}"; do
-              reviewer=$(echo "$reviewer" | xargs)
-              if [ -n "$reviewer" ]; then
-                gh pr edit "$PR_URL" --add-reviewer "$reviewer" || \
-                  echo "::warning::Failed to request reviewer '$reviewer' on PR $PR_URL"
-              fi
-            done
-          fi
-
-      - name: Report Summary
-        env:
-          TARGET_VERSION: ${{ steps.determine_version.outputs.target_version }}
-          TARGET_BRANCH: ${{ steps.determine_version.outputs.target_branch }}
-        run: |
-          echo "## Release Prep Completed" >> $GITHUB_STEP_SUMMARY
-          echo "Release branch \`${TARGET_BRANCH}\` prepared for version \`${TARGET_VERSION}\`." >> $GITHUB_STEP_SUMMARY
+            -   name: Report summary
+                env:
+                    TARGET_VERSION: ${{ steps.version.outputs.target_version }}
+                    TARGET_BRANCH: ${{ steps.version.outputs.target_branch }}
+                    BASE_BRANCH: ${{ inputs.base_branch }}
+                    PR_BASE: ${{ inputs.target_pr_base }}
+                run: |
+                    cat >> $GITHUB_STEP_SUMMARY <<EOF
+                    ## Release Prep Completed
+                    Release branch \`${TARGET_BRANCH}\` (from \`${BASE_BRANCH}\`, PR into \`${PR_BASE}\`) prepared for version \`${TARGET_VERSION}\`.
+                    EOF
