@@ -35,10 +35,23 @@ Report which of these the repo has. Do not create the missing ones yet; some are
 - [ ] `.puprc` at the repo root, with `zip_name`, `paths.versions`, and `build` / `build_dev` commands.
       Most add-ons don't have one. Without it `pup get-version` fails and the whole thing is a no-op.
 - [ ] A `pup` script in `composer.json` that downloads and runs `pup.phar`, so `composer -- pup <cmd>`
-      works. Copy GiveWP core's if it's missing.
+      works. Copy GiveWP core's if it's missing — it fails on HTTP errors and downloads to a temp file, so
+      a failed download is never cached as `bin/pup.phar`. Keep `--create-dirs`, since most add-ons have no
+      `bin/` directory, and make sure `.gitignore` covers `bin/pup.phar*`:
+
+      ```json
+      "pup": [
+          "sh -c 'test -f ./bin/pup.phar || { curl -fsSL --create-dirs -o bin/pup.phar.tmp https://github.com/stellarwp/pup/releases/download/2.0.0/pup.phar && mv bin/pup.phar.tmp bin/pup.phar; }'",
+          "sh -c 'PATH=$(echo \"$PATH\" | tr \":\" \"\\n\" | grep -v \"/vendor/bin$\" | paste -sd: -) exec php ./bin/pup.phar \"$@\"' --"
+      ]
+      ```
 - [ ] `.nvmrc`, if the build runs npm. The shared workflow reads the node version from it and **skips
       node setup entirely when it's absent** — the build then runs on whatever node the runner ships.
 - [ ] `.distignore`, or `zip_use_default_ignore: true` in `.puprc`, so the zip doesn't ship dev files.
+      Make sure `.distignore` lists `/bin`, as GiveWP core's does. pup's default ignore list includes
+      `bin/`, but in the give-recurring migration the zip still shipped `bin/pup.phar` until `/bin` was added.
+      If the repo has a `.distfiles`, pup ignores `.distignore` and its default rules entirely, so make sure
+      no `.distfiles` pattern matches `bin/` instead. No impress-org repo used one as of this writing.
 - [ ] Whether the repo ships a POT file. Check `languages/` in a zip the current `generate-zip.yml`
       produced. If there's a `<slug>.pot` in there, the migration has to carry the POT step across —
       see Phase 2. Every impress-org repo shipped one as of the core migration.
@@ -101,6 +114,9 @@ on:
 
 jobs:
     zip:
+        # The shared workflow only checks out and builds this repo, so the token never needs write access.
+        permissions:
+            contents: read
         uses: stellarwp/github-actions/.github/workflows/zip.yml@main
         with:
             ref: ${{ inputs.ref }}
