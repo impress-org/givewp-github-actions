@@ -53,6 +53,11 @@ on:
                 required: false
                 default: "20"
                 type: string
+            pup_version:
+                description: "stellarwp/pup release to use for the version bump and TBD replacement"
+                required: false
+                default: "2.0.0"
+                type: string
             reviewers:
                 description: "Comma-separated list of reviewer usernames"
                 required: false
@@ -73,8 +78,32 @@ jobs:
                     ref: ${{ inputs.base_branch }}
                     fetch-depth: 0
 
-            -   uses: impress-org/givewp-github-actions/.github/actions/resolve-version@master
+            -   name: Set up PHP
+                uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+                with:
+                    php-version: ${{ inputs.php_version }}
+                    coverage: none
+
+            # pup bumps every file in .puprc paths.versions and replaces TBD placeholders in
+            # .puprc checks.tbd.dirs, so the same .puprc drives Give Core and every add-on.
+            -   name: Set up pup
                 id: current
+                env:
+                    PUP_VERSION: ${{ inputs.pup_version }}
+                run: |
+                    if [ ! -f .puprc ]; then
+                        echo "::error::No .puprc found. Release prep reads the version files (paths.versions) and TBD dirs (checks.tbd.dirs) from it."
+                        exit 1
+                    fi
+
+                    PUP="$RUNNER_TEMP/pup.phar"
+                    curl -fsSL -o "$PUP" "https://github.com/stellarwp/pup/releases/download/${PUP_VERSION}/pup.phar"
+                    # Keep PHP notices off stdout so get-version prints only the version.
+                    echo "PUP=php -d display_errors=stderr $PUP" >> $GITHUB_ENV
+
+                    VERSION=$(php -d display_errors=stderr "$PUP" get-version)
+                    [ "$VERSION" = "unknown" ] && VERSION=""
+                    echo "version=$VERSION" >> $GITHUB_OUTPUT
 
             -   name: Determine version
                 id: version
@@ -153,12 +182,6 @@ jobs:
                     # Checking out a branch that only exists on origin creates the tracking branch.
                     git checkout "$RELEASE_BRANCH" 2>/dev/null || git checkout -b "$RELEASE_BRANCH"
 
-            -   name: Set up PHP
-                uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
-                with:
-                    php-version: ${{ inputs.php_version }}
-                    coverage: none
-
             -   name: Install composer dependencies
                 uses: ramsey/composer-install@26d8a556604053a9612623447203a691f406fbe6 # v4
                 if: ${{ inputs.install_composer_packages && hashFiles('composer.json') != '' }}
@@ -180,14 +203,10 @@ jobs:
                 run: |
                     [ "$DATE" = "today" ] && DATE=""
 
-                    if [ -f "bin/release-prep.sh" ]; then
-                        bin/release-prep.sh "$VERSION" ${DATE:+--date "$DATE"}
-                    elif [ -f "bin/write-changelog.sh" ]; then
-                        bin/write-changelog.sh "$VERSION" ${DATE:+--date "$DATE"}
-                    else
-                        echo "Running changelogger write directly (add-on without bin/ scripts)."
-                        npx --no-install changelogger write --overwrite-version "$VERSION" ${DATE:+--date "$DATE"}
-                    fi
+                    # Same three steps as Give Core's bin/release-prep.sh.
+                    $PUP replace-version "$VERSION"
+                    $PUP replace-tbd "$VERSION"
+                    npx --no-install changelogger write --overwrite-version "$VERSION" ${DATE:+--date "$DATE"}
 
             -   name: Commit and push release branch
                 env:
