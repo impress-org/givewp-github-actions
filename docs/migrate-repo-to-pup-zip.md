@@ -50,6 +50,8 @@ Report which of these the repo has. Do not create the missing ones yet; some are
 - [ ] `.distignore`, or `zip_use_default_ignore: true` in `.puprc`, so the zip doesn't ship dev files.
       Make sure `.distignore` lists `/bin`, as GiveWP core's does. pup's default ignore list includes
       `bin/`, but in the give-recurring migration the zip still shipped `bin/pup.phar` until `/bin` was added.
+      If the repo has a `.distfiles`, pup ignores `.distignore` and its default rules entirely, so make sure
+      no `.distfiles` pattern matches `bin/` instead. No impress-org repo used one as of this writing.
 - [ ] Whether the repo ships a POT file. Check `languages/` in a zip the current `generate-zip.yml`
       produced. If there's a `<slug>.pot` in there, the migration has to carry the POT step across —
       see Phase 2. Every impress-org repo shipped one as of the core migration.
