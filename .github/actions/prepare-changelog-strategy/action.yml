@@ -1,0 +1,19 @@
+name: Prepare Changelog Strategy
+description: Put GiveWP's legacy changelog writing strategy where package.json expects it
+
+runs:
+    using: "composite"
+    steps:
+        # changelogger only accepts a local file path for a strategy, so the canonical file is copied
+        # into the path the add-on's package.json references. Give Core commits its own copy and is
+        # left untouched. The copy is git-excluded so it never lands in a commit.
+        -   name: Copy changelog strategy
+            shell: bash
+            run: |
+                if [ -f bin/lib/changelog-strategy.js ]; then
+                    echo "Strategy already present in the repository; leaving it untouched."
+                else
+                    mkdir -p bin/lib
+                    cp "${GITHUB_ACTION_PATH}/changelog-strategy.js" bin/lib/changelog-strategy.js
+                    echo "bin/lib/changelog-strategy.js" >> .git/info/exclude
+                fi
