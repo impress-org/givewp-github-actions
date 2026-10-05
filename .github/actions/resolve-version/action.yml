@@ -48,8 +48,9 @@ runs:
                 VERSION=''
 
                 if [ -n "$FILE" ] && [ -f "$FILE" ]; then
-                    # Extract the version number using grep and sed
-                    VERSION=$(grep -o -E "$REGEX" "$FILE" | head -n 1 | sed -E "s/$REGEX/\2/" | tr -d '[:space:]')
+                    # Extract the version number using grep and sed. No match (grep exit 1) leaves the
+                    # version empty; a real grep error (exit 2) still fails the step under pipefail.
+                    VERSION=$({ grep -o -E "$REGEX" "$FILE" || [ $? -eq 1 ]; } | head -n 1 | sed -E "s/$REGEX/\2/" | tr -d '[:space:]')
                 fi
 
                 echo "VERSION=$VERSION" >> $GITHUB_ENV

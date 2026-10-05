@@ -52,7 +52,7 @@ jobs:
                     ref: ${{ inputs.ref }}
 
             # Exports VERSION and VERSION_FILES. An empty VERSION skips the S3 upload and the Slack message.
-            -   uses: impress-org/givewp-github-actions/.github/actions/resolve-version@master
+            -   uses: $/.github/actions/resolve-version
 
             -   name: Create a new version number if not a production zip
                 if: ${{ inputs.production == 'false' }}

@@ -194,7 +194,9 @@ jobs:
                 if: ${{ inputs.install_npm_packages && hashFiles('package-lock.json') != '' }}
                 run: npm ci --prefer-offline --no-audit
 
-            -   uses: impress-org/givewp-github-actions/.github/actions/prepare-changelog-strategy@master
+            # $/ resolves to this repository at the commit of this workflow, so the action always matches
+            # the release-prep revision the caller pinned.
+            -   uses: $/.github/actions/prepare-changelog-strategy
 
             -   name: Run release preparation pipeline
                 env:
