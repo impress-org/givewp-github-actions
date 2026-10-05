@@ -47,13 +47,18 @@ jobs:
         name: 🔁 Sync Translations
         runs-on: blacksmith-4vcpu-ubuntu-2404
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
               with:
                   ref: ${{ inputs.ref }}
 
-            - uses: actions/setup-node@v4
+            - uses: actions/setup-node@v7
               with:
                   node-version: "18"
+
+            - name: Install npm dependencies & build for translation
+              run: |
+                  npm ci
+                  npm run build
 
             - uses: impress-org/givewp-github-actions/.github/actions/generate-pot-file@master
               with:
