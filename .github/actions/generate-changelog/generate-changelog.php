@@ -41,7 +41,12 @@ $firstLine = true;
 $line = strtok($changeLogSection, "\n");
 
 while ($line !== false) {
-    if ( preg_match('= ([\d.]+): ([a-zA-Z]+ \d{1,2}\w{2}, \d{4}) =', $line, $matches) ) {
+    // A version header, in the format the changelogger's stellarwp-readme strategy writes
+    // (`= [4.19.1] 2026-10-27 =`) or in the older hand-written one (`= 4.19.1: October 27th, 2026 =`).
+    if (
+        preg_match('~^= \[([\d.]+)\] (\d{4}-\d{2}-\d{2}) =$~', $line, $matches)
+        || preg_match('= ([\d.]+): ([a-zA-Z]+ \d{1,2}\w{2}, \d{4}) =', $line, $matches)
+    ) {
         $version = $matches[1];
         $date = new DateTime($matches[2]);
 
