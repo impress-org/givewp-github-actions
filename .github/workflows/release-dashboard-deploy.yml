@@ -116,6 +116,9 @@ jobs:
         permissions:
             contents: write # the actions write the merges and create the release
         outputs:
+            # The version as release-merge validated it (trimmed, three or four numeric parts): the
+            # deploy job uses this, never the raw input, where it goes into a shell script.
+            version: ${{ steps.merge.outputs.version }}
             base-sha: ${{ steps.merge.outputs.base-sha }}
             release-url: ${{ steps.publish.outputs.release-url }}
 
@@ -232,8 +235,8 @@ jobs:
                     remote_user: ${{ secrets.WEBSITE_DEPLOY_USER }}
                     remote_key: ${{ secrets.WEBSITE_DEPLOY_PRIVATE_KEY }}
 
-            # The tag is the version: givewp-release.yml reads it from the release event, this run has it
-            # as an input.
+            # The tag is the version: givewp-release.yml reads it from the release event, this run takes
+            # the one the merge job validated.
             -   name: Update release version on website
                 uses: appleboy/ssh-action@v1
                 with:
@@ -242,7 +245,7 @@ jobs:
                     key: ${{ secrets.WEBSITE_DEPLOY_PRIVATE_KEY }}
                     script: |
                         cd ${{ secrets.GIVEWP_WORDPRESS_PATH }}
-                        wp post meta update ${{ secrets.EDD_PRODUCT_ID }} _edd_sl_version ${{ inputs.version }}
+                        wp post meta update ${{ secrets.EDD_PRODUCT_ID }} _edd_sl_version ${{ needs.merge.outputs.version }}
 
             # Attached to the release published above, under the zip's name on GiveWP.com. `gh release
             # upload` takes the tag, so no upload URL from a release event is needed; --clobber replaces
@@ -251,7 +254,7 @@ jobs:
                 env:
                     GH_TOKEN: ${{ github.token }}
                     GH_REPO: ${{ github.repository }}
-                    VERSION: ${{ inputs.version }}
+                    VERSION: ${{ needs.merge.outputs.version }}
                     ZIP_NAME: ${{ inputs.zip_name }}
                 run: |
                     cp release.zip "$ZIP_NAME.zip"
@@ -275,7 +278,7 @@ jobs:
                     GH_TOKEN: ${{ github.token }}
                     GH_REPO: ${{ github.repository }}
                     REPO: ${{ github.event.repository.name }}
-                    VERSION: ${{ inputs.version }}
+                    VERSION: ${{ needs.merge.outputs.version }}
                     URL: ${{ needs.merge.outputs.release-url }}
                 run: |
                     name=$(gh release view "$VERSION" --json name --jq .name)
