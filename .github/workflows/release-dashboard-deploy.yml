@@ -184,11 +184,16 @@ jobs:
                 with:
                     composer-options: --no-dev
 
+            # Both guarded by install_npm_packages, unlike givewp-release.yml, where npm ci always runs:
+            # here the release is already published when the build runs, so a plugin without npm must
+            # not fail on a missing lockfile.
             -   uses: actions/setup-node@v7
+                if: ${{ inputs.install_npm_packages }}
                 with:
                     node-version: '18'
 
             -   name: Install npm dependencies & build for translation
+                if: ${{ inputs.install_npm_packages }}
                 run: npm ci
 
             -   name: Build assets
