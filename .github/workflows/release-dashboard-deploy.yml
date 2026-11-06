@@ -1,0 +1,294 @@
+name: 🚀 Release to GiveWP.com from the release dashboard
+
+# The deploy step the NX1 release dashboard dispatches for a premium add-on, in one run: merges the
+# release branch into master and master back into develop, publishes the GitHub release for the
+# version at the merged commit, then runs the same steps as givewp-release.yml (build, POT file,
+# changelog, zip and readme to GiveWP.com, EDD version, release asset, translations, Slack).
+#
+# givewp-release.yml stays the path for a release published by hand on GitHub: it runs on the
+# `release` event and reads the tag, the upload URL and the notes from that event. This workflow has
+# no release event, so it takes the version as an input, publishes the release itself and reads the
+# notes back from it with `gh release view`. A release this workflow publishes does not start the
+# caller's release.yml: GitHub does not run workflows for events caused by a workflow's own
+# GITHUB_TOKEN, so a release is never deployed twice.
+#
+# The merges run through the shared release-merge action in stellarwp/plugin-toolbox and the release
+# through its release-publish action, in the first job; the deploy is the second job and builds from
+# the merged commit. Like a release published by hand, the release exists before the deploy runs; a
+# failed deploy leaves it without its asset until the step is run again. Every step is safe to run
+# again: a branch that already holds the release merges as a no-op, an existing release is skipped and
+# the asset is replaced. A merge conflict fails the run before anything is published, with a
+# MERGE_CONFLICT line the dashboard reads; resolve it on the branch named, push, and run the step
+# again.
+#
+# An add-on calls this file from a thin `release-dashboard-deploy.yml` of its own, dispatched by the
+# dashboard on the release branch with `branch` and `version`:
+#
+#   on:
+#     workflow_dispatch:
+#       inputs:
+#         branch:
+#           required: true
+#           type: string
+#         version:
+#           required: true
+#           type: string
+#   jobs:
+#     deploy:
+#       uses: impress-org/givewp-github-actions/.github/workflows/release-dashboard-deploy.yml@master
+#       with:
+#         plugin_slug: give-recurring
+#         zip_name: give-recurring
+#         branch: ${{ inputs.branch }}
+#         version: ${{ inputs.version }}
+#       secrets: inherit
+#       permissions:
+#         contents: write
+#         pull-requests: write
+#         repository-projects: write
+
+on:
+    workflow_call:
+        inputs:
+            plugin_slug:
+                type: string
+                required: true
+            zip_name:
+                type: string
+                required: true
+            branch:
+                description: 'Release branch to merge, e.g. release/2.20.4. The run has to be on this branch'
+                type: string
+                required: true
+            version:
+                description: 'Version being released, e.g. 2.20.4. Becomes the tag and the title of the GitHub release'
+                type: string
+                required: true
+            install_composer_packages:
+                description: 'Whether composer needs to be run as part of the build'
+                type: boolean
+                required: false
+                default: true
+            install_npm_packages:
+                description: 'Whether NPM needs to be run as part of the build'
+                type: boolean
+                required: false
+                default: true
+            push_translations:
+                description: 'Whether translations should be pushed to the translation server'
+                type: boolean
+                required: false
+                default: true
+        secrets:
+            GIVEWP_DOWNLOADS_PATH:
+                required: true
+            GIVEWP_DOWNLOADS_URI:
+                required: true
+            GIVEWP_WORDPRESS_PATH:
+                required: true
+            GIVEWP_CLOUDFLARE_TOKEN:
+                required: true
+            GIVEWP_CLOUDFLARE_ZONE:
+                required: true
+            WEBSITE_DEPLOY_HOST:
+                required: true
+            WEBSITE_DEPLOY_USER:
+                required: true
+            WEBSITE_DEPLOY_PRIVATE_KEY:
+                required: true
+            TRANSLATIONS_DEPLOY_HOST:
+                required: true
+            TRANSLATIONS_DEPLOY_USER:
+                required: true
+            TRANSLATIONS_DEPLOY_SSH_KEY:
+                required: true
+            TRANSLATIONS_DEPLOY_POT_LOCATION:
+                required: true
+            EDD_PRODUCT_ID:
+                required: true
+            SLACK_ANNOUNCEMENT_WEBHOOK:
+                required: true
+
+jobs:
+    merge:
+        name: Merge & Publish Release
+        runs-on: blacksmith-4vcpu-ubuntu-2404
+        permissions:
+            contents: write # the actions write the merges and create the release
+        outputs:
+            base-sha: ${{ steps.merge.outputs.base-sha }}
+            release-url: ${{ steps.publish.outputs.release-url }}
+
+        steps:
+            # The caller's run has to be on the release branch it merges, as the dashboard starts it: the
+            # commit the run was started on is the one the release-merge action is told to merge.
+            -   name: Check that the run is on the release branch it merges
+                env:
+                    BRANCH: ${{ inputs.branch }}
+                run: |
+                    if [ "$BRANCH" != "$GITHUB_REF_NAME" ]; then
+                        echo "::error::This run is on '$GITHUB_REF_NAME' but was asked to release '$BRANCH'. Start it on the release branch (the dashboard does; by hand, pass --ref)."
+                        exit 1
+                    fi
+
+            # The merges go through the GitHub API, so no checkout is needed before this step. Pinned to a
+            # commit of stellarwp/plugin-toolbox#16 (stacked on #10); switch to @v1 once plugin-toolbox
+            # publishes a release.
+            -   name: Merge the release into master and master back into develop
+                id: merge
+                uses: stellarwp/plugin-toolbox/.github/actions/release-merge@2fb753bcbb11c53faaac5164f67ab4051f6a9d05
+                with:
+                    branch: ${{ inputs.branch }}
+                    # The commit the run was started on: a push to the branch after the dispatch is refused
+                    # rather than merged unreviewed.
+                    head: ${{ github.sha }}
+                    version: ${{ inputs.version }}
+                    base-branch: master
+
+            # The release at the commit the merge left master on, titled with the version, with GitHub's
+            # generated notes. A version already published is skipped, so a run can be repeated.
+            -   name: Publish the GitHub release
+                id: publish
+                uses: stellarwp/plugin-toolbox/.github/actions/release-publish@2fb753bcbb11c53faaac5164f67ab4051f6a9d05
+                with:
+                    version: ${{ inputs.version }}
+                    target: ${{ steps.merge.outputs.base-sha }}
+
+    deploy:
+        name: Build & Release Plugin
+        runs-on: blacksmith-4vcpu-ubuntu-2404
+        needs: merge
+        permissions:
+            contents: write # the release asset is uploaded with the run's token
+            pull-requests: write
+            repository-projects: write
+
+        steps:
+            # The merged commit on master, the one the release was published at: everything below builds
+            # the release from it.
+            -   uses: actions/checkout@v7
+                with:
+                    ref: ${{ needs.merge.outputs.base-sha }}
+                    # Nothing below needs git credentials; the third-party actions find none in .git/config.
+                    persist-credentials: false
+
+            -   name: Set up PHP
+                uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+                with:
+                    php-version: '7.4'
+                    coverage: none
+
+            -   name: Install composer dependencies
+                uses: ramsey/composer-install@26d8a556604053a9612623447203a691f406fbe6 # v4
+                if: ${{ inputs.install_composer_packages }}
+                with:
+                    composer-options: --no-dev
+
+            -   uses: actions/setup-node@v7
+                with:
+                    node-version: '18'
+
+            -   name: Install npm dependencies & build for translation
+                run: npm ci
+
+            -   name: Build assets
+                if: ${{ inputs.install_npm_packages }}
+                run: npm run build
+
+            -   uses: $/.github/actions/generate-pot-file
+                with:
+                    plugin_path: ${{ github.workspace }}
+                    pot_path: ${{ github.workspace }}/languages/${{ inputs.plugin_slug }}.pot
+
+            -   uses: $/.github/actions/generate-changelog
+
+            -   name: Generate plugin artifact
+                run: |
+                    rsync -rc --exclude-from="$GITHUB_WORKSPACE/.distignore" --exclude="DOCKER_ENV" --exclude="docker_tag" --exclude="output.log" "${GITHUB_WORKSPACE}/" ${{ inputs.plugin_slug }}/ --delete --delete-excluded
+                    zip -r "${GITHUB_WORKSPACE}/release.zip" ${{ inputs.plugin_slug }}
+
+            -   name: Deploy plugin zip to GiveWP.com
+                uses: burnett01/rsync-deployments@v9
+                with:
+                    switches: -avz --omit-dir-times --no-perms
+                    path: release.zip
+                    remote_path: ${{ secrets.GIVEWP_DOWNLOADS_PATH }}/${{ inputs.zip_name }}.zip
+                    remote_host: ${{ secrets.WEBSITE_DEPLOY_HOST }}
+                    remote_user: ${{ secrets.WEBSITE_DEPLOY_USER }}
+                    remote_key: ${{ secrets.WEBSITE_DEPLOY_PRIVATE_KEY }}
+
+            -   name: Deploy plugin readme to GiveWP.com
+                uses: burnett01/rsync-deployments@v9
+                with:
+                    switches: -avz --omit-dir-times --no-perms
+                    path: readme.txt
+                    remote_path: ${{ secrets.GIVEWP_DOWNLOADS_PATH }}/${{ inputs.plugin_slug }}/
+                    remote_host: ${{ secrets.WEBSITE_DEPLOY_HOST }}
+                    remote_user: ${{ secrets.WEBSITE_DEPLOY_USER }}
+                    remote_key: ${{ secrets.WEBSITE_DEPLOY_PRIVATE_KEY }}
+
+            # The tag is the version: givewp-release.yml reads it from the release event, this run has it
+            # as an input.
+            -   name: Update release version on website
+                uses: appleboy/ssh-action@v1
+                with:
+                    host: ${{ secrets.WEBSITE_DEPLOY_HOST }}
+                    username: ${{ secrets.WEBSITE_DEPLOY_USER }}
+                    key: ${{ secrets.WEBSITE_DEPLOY_PRIVATE_KEY }}
+                    script: |
+                        cd ${{ secrets.GIVEWP_WORDPRESS_PATH }}
+                        wp post meta update ${{ secrets.EDD_PRODUCT_ID }} _edd_sl_version ${{ inputs.version }}
+
+            # Attached to the release published above, under the zip's name on GiveWP.com. `gh release
+            # upload` takes the tag, so no upload URL from a release event is needed; --clobber replaces
+            # the asset of a run repeated after a late failure.
+            -   name: Upload release asset
+                env:
+                    GH_TOKEN: ${{ github.token }}
+                    GH_REPO: ${{ github.repository }}
+                    VERSION: ${{ inputs.version }}
+                    ZIP_NAME: ${{ inputs.zip_name }}
+                run: |
+                    cp release.zip "$ZIP_NAME.zip"
+                    gh release upload "$VERSION" "$ZIP_NAME.zip" --clobber
+
+            -   uses: $/.github/actions/push-translations
+                if: ${{ inputs.push_translations }}
+                with:
+                    plugin_slug: ${{ inputs.plugin_slug }}
+                env:
+                    TRANSLATIONS_DEPLOY_HOST: ${{ secrets.TRANSLATIONS_DEPLOY_HOST }}
+                    TRANSLATIONS_DEPLOY_USER: ${{ secrets.TRANSLATIONS_DEPLOY_USER }}
+                    TRANSLATIONS_DEPLOY_SSH_KEY: ${{ secrets.TRANSLATIONS_DEPLOY_SSH_KEY }}
+                    TRANSLATIONS_DEPLOY_POT_LOCATION: ${{ secrets.TRANSLATIONS_DEPLOY_POT_LOCATION }}
+
+            # The same announcement as givewp-release.yml. The release name and notes come from the release
+            # just published, read back with `gh release view`, since no release event carries them here.
+            -   name: Build the release announcement
+                id: announcement
+                env:
+                    GH_TOKEN: ${{ github.token }}
+                    GH_REPO: ${{ github.repository }}
+                    REPO: ${{ github.event.repository.name }}
+                    VERSION: ${{ inputs.version }}
+                    URL: ${{ needs.merge.outputs.release-url }}
+                run: |
+                    name=$(gh release view "$VERSION" --json name --jq .name)
+                    body=$(gh release view "$VERSION" --json body --jq .body)
+
+                    # A random delimiter stops a release body that happens to contain the terminator from
+                    # closing the heredoc early and writing step outputs of its own.
+                    delimiter=$(openssl rand -hex 16)
+
+                    {
+                        echo "text<<${delimiter}"
+                        printf "*%s %s has just been released! 🎉* \n\n Here's what's new: \n\n %s \n\n <%s|Link to Release>\n" \
+                            "$REPO" "$name" "$body" "$URL"
+                        echo "${delimiter}"
+                    } >> "$GITHUB_OUTPUT"
+
+            -   name: Slack Notification
+                uses: someimportantcompany/github-actions-slack-message@v1
+                with:
+                    webhook-url: ${{ secrets.SLACK_ANNOUNCEMENT_WEBHOOK }}
+                    text: ${{ steps.announcement.outputs.text }}
