@@ -130,12 +130,12 @@ jobs:
                         exit 1
                     fi
 
-            # The merges go through the GitHub API, so no checkout is needed before this step. Pinned to a
-            # commit of stellarwp/plugin-toolbox main, the merge of its #21; switch to @v1 once plugin-toolbox
-            # publishes a release.
+            # The merges go through the GitHub API, so no checkout is needed before this step. Pinned to the
+            # head of stellarwp/plugin-toolbox#22, which adds the published output read below; switch to
+            # @v1 once plugin-toolbox publishes a release.
             -   name: Merge the release into master and master back into develop
                 id: merge
-                uses: stellarwp/plugin-toolbox/.github/actions/release-merge@7b2ac9320f7b4e8d655c256aabfb39c457ec73ed
+                uses: stellarwp/plugin-toolbox/.github/actions/release-merge@29d2530fe05d9ba63955ad235d3c7ebd3780e00f
                 with:
                     branch: ${{ inputs.branch }}
                     # The commit the run was started on: a push to the branch after the dispatch is refused
@@ -191,7 +191,12 @@ jobs:
                     rsync -rc --exclude-from="$GITHUB_WORKSPACE/.distignore" --exclude="DOCKER_ENV" --exclude="docker_tag" --exclude="output.log" "${GITHUB_WORKSPACE}/" ${{ inputs.plugin_slug }}/ --delete --delete-excluded
                     zip -r "${GITHUB_WORKSPACE}/release.zip" ${{ inputs.plugin_slug }}
 
+            # The three writes to the site run only for a version not published yet. On a retry of a
+            # published version release-merge hands back the tag's commit and release-publish skips the
+            # release, but the zip, the readme and the EDD version on the site are not safe to write
+            # again: a retry of an older version would put that version back on the site.
             -   name: Deploy plugin zip to GiveWP.com
+                if: steps.merge.outputs.published != 'yes'
                 uses: burnett01/rsync-deployments@v9
                 with:
                     switches: -avz --omit-dir-times --no-perms
@@ -202,6 +207,7 @@ jobs:
                     remote_key: ${{ secrets.WEBSITE_DEPLOY_PRIVATE_KEY }}
 
             -   name: Deploy plugin readme to GiveWP.com
+                if: steps.merge.outputs.published != 'yes'
                 uses: burnett01/rsync-deployments@v9
                 with:
                     switches: -avz --omit-dir-times --no-perms
@@ -215,6 +221,7 @@ jobs:
             # the one release-merge validated (trimmed, three or four numeric parts), never the raw input,
             # since it goes into a shell script.
             -   name: Update release version on website
+                if: steps.merge.outputs.published != 'yes'
                 uses: appleboy/ssh-action@v1
                 with:
                     host: ${{ secrets.WEBSITE_DEPLOY_HOST }}
@@ -235,7 +242,7 @@ jobs:
 
             -   name: Publish the GitHub release
                 id: publish
-                uses: stellarwp/plugin-toolbox/.github/actions/release-publish@7b2ac9320f7b4e8d655c256aabfb39c457ec73ed
+                uses: stellarwp/plugin-toolbox/.github/actions/release-publish@29d2530fe05d9ba63955ad235d3c7ebd3780e00f
                 with:
                     version: ${{ steps.merge.outputs.version }}
                     target: ${{ steps.merge.outputs.base-sha }}
