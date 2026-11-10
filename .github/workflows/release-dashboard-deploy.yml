@@ -135,7 +135,7 @@ jobs:
             # @v1 once plugin-toolbox publishes a release.
             -   name: Merge the release into master and master back into develop
                 id: merge
-                uses: stellarwp/plugin-toolbox/.github/actions/release-merge@29d2530fe05d9ba63955ad235d3c7ebd3780e00f
+                uses: stellarwp/plugin-toolbox/.github/actions/release-merge@178c1d80af166ecbb24327c84b83105724803839
                 with:
                     branch: ${{ inputs.branch }}
                     # The commit the run was started on: a push to the branch after the dispatch is refused
@@ -196,7 +196,7 @@ jobs:
             # release, but the zip, the readme and the EDD version on the site are not safe to write
             # again: a retry of an older version would put that version back on the site.
             -   name: Deploy plugin zip to GiveWP.com
-                if: steps.merge.outputs.published != 'yes'
+                if: steps.merge.outputs.published == 'no'
                 uses: burnett01/rsync-deployments@v9
                 with:
                     switches: -avz --omit-dir-times --no-perms
@@ -207,7 +207,7 @@ jobs:
                     remote_key: ${{ secrets.WEBSITE_DEPLOY_PRIVATE_KEY }}
 
             -   name: Deploy plugin readme to GiveWP.com
-                if: steps.merge.outputs.published != 'yes'
+                if: steps.merge.outputs.published == 'no'
                 uses: burnett01/rsync-deployments@v9
                 with:
                     switches: -avz --omit-dir-times --no-perms
@@ -221,7 +221,7 @@ jobs:
             # the one release-merge validated (trimmed, three or four numeric parts), never the raw input,
             # since it goes into a shell script.
             -   name: Update release version on website
-                if: steps.merge.outputs.published != 'yes'
+                if: steps.merge.outputs.published == 'no'
                 uses: appleboy/ssh-action@v1
                 with:
                     host: ${{ secrets.WEBSITE_DEPLOY_HOST }}
@@ -242,7 +242,7 @@ jobs:
 
             -   name: Publish the GitHub release
                 id: publish
-                uses: stellarwp/plugin-toolbox/.github/actions/release-publish@29d2530fe05d9ba63955ad235d3c7ebd3780e00f
+                uses: stellarwp/plugin-toolbox/.github/actions/release-publish@178c1d80af166ecbb24327c84b83105724803839
                 with:
                     version: ${{ steps.merge.outputs.version }}
                     target: ${{ steps.merge.outputs.base-sha }}
