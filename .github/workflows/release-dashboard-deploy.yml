@@ -191,10 +191,13 @@ jobs:
                     rsync -rc --exclude-from="$GITHUB_WORKSPACE/.distignore" --exclude="DOCKER_ENV" --exclude="docker_tag" --exclude="output.log" "${GITHUB_WORKSPACE}/" ${{ inputs.plugin_slug }}/ --delete --delete-excluded
                     zip -r "${GITHUB_WORKSPACE}/release.zip" ${{ inputs.plugin_slug }}
 
-            # The three writes to the site run only for a version not published yet. On a retry of a
-            # published version release-merge hands back the tag's commit and release-publish skips the
-            # release, but the zip, the readme and the EDD version on the site are not safe to write
-            # again: a retry of an older version would put that version back on the site.
+            # The writes to the site and to translations.stellarwp.com run only for a version not
+            # published yet, and before the release is published, so the release is the point after
+            # which they are done. On a retry of a published version release-merge hands back the tag's
+            # commit and release-publish skips the release, but the zip, the readme, the EDD version and
+            # the POT file are not safe to write again: a retry of an older version would put that
+            # version back. A retry after a failed write runs them again for the same version, which
+            # writes the same bytes.
             -   name: Deploy plugin zip to GiveWP.com
                 if: steps.merge.outputs.published == 'no'
                 uses: burnett01/rsync-deployments@v9
@@ -231,6 +234,16 @@ jobs:
                         cd ${{ secrets.GIVEWP_WORDPRESS_PATH }}
                         wp post meta update ${{ secrets.EDD_PRODUCT_ID }} _edd_sl_version ${{ steps.merge.outputs.version }}
 
+            -   uses: $/.github/actions/push-translations
+                if: ${{ inputs.push_translations && steps.merge.outputs.published == 'no' }}
+                with:
+                    plugin_slug: ${{ inputs.plugin_slug }}
+                env:
+                    TRANSLATIONS_DEPLOY_HOST: ${{ secrets.TRANSLATIONS_DEPLOY_HOST }}
+                    TRANSLATIONS_DEPLOY_USER: ${{ secrets.TRANSLATIONS_DEPLOY_USER }}
+                    TRANSLATIONS_DEPLOY_SSH_KEY: ${{ secrets.TRANSLATIONS_DEPLOY_SSH_KEY }}
+                    TRANSLATIONS_DEPLOY_POT_LOCATION: ${{ secrets.TRANSLATIONS_DEPLOY_POT_LOCATION }}
+
             # The GitHub release, at the commit the merge left master on, titled with the version, with
             # GitHub's generated notes and the zip attached under its name on GiveWP.com. Published after
             # the deploy, so a failed build or deploy leaves no release; a version already published is
@@ -249,20 +262,12 @@ jobs:
                     files: |
                         ${{ inputs.zip_name }}.zip
 
-            -   uses: $/.github/actions/push-translations
-                if: ${{ inputs.push_translations }}
-                with:
-                    plugin_slug: ${{ inputs.plugin_slug }}
-                env:
-                    TRANSLATIONS_DEPLOY_HOST: ${{ secrets.TRANSLATIONS_DEPLOY_HOST }}
-                    TRANSLATIONS_DEPLOY_USER: ${{ secrets.TRANSLATIONS_DEPLOY_USER }}
-                    TRANSLATIONS_DEPLOY_SSH_KEY: ${{ secrets.TRANSLATIONS_DEPLOY_SSH_KEY }}
-                    TRANSLATIONS_DEPLOY_POT_LOCATION: ${{ secrets.TRANSLATIONS_DEPLOY_POT_LOCATION }}
-
             # The same announcement as givewp-release.yml. The release name and notes come from the release
             # just published, read back with `gh release view`, since no release event carries them here.
+            # Not repeated on a retry of a published version: the release was announced when it went out.
             -   name: Build the release announcement
                 id: announcement
+                if: steps.merge.outputs.published == 'no'
                 env:
                     GH_TOKEN: ${{ github.token }}
                     GH_REPO: ${{ github.repository }}
@@ -285,6 +290,7 @@ jobs:
                     } >> "$GITHUB_OUTPUT"
 
             -   name: Slack Notification
+                if: steps.merge.outputs.published == 'no'
                 uses: someimportantcompany/github-actions-slack-message@v1
                 with:
                     webhook-url: ${{ secrets.SLACK_ANNOUNCEMENT_WEBHOOK }}
