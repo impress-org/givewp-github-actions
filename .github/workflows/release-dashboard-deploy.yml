@@ -130,12 +130,12 @@ jobs:
                         exit 1
                     fi
 
-            # The merges go through the GitHub API, so no checkout is needed before this step. Pinned to the
-            # head of stellarwp/plugin-toolbox#22, which adds the published output read below; switch to
-            # @v1 once plugin-toolbox publishes a release.
+            # The merges go through the GitHub API, so no checkout is needed before this step. Pinned to a
+            # commit of stellarwp/plugin-toolbox main, the merge of its #22, which adds the already-published
+            # output read below; switch to @v1 once plugin-toolbox publishes a release.
             -   name: Merge the release into master and master back into develop
                 id: merge
-                uses: stellarwp/plugin-toolbox/.github/actions/release-merge@b4d05b1d0ead8cdb524c7f55aee80f7455e7b4aa
+                uses: stellarwp/plugin-toolbox/.github/actions/release-merge@c71c3832596c732ef5021c0183b1d65139aacb29
                 with:
                     branch: ${{ inputs.branch }}
                     # The commit the run was started on: a push to the branch after the dispatch is refused
@@ -255,7 +255,7 @@ jobs:
 
             -   name: Publish the GitHub release
                 id: publish
-                uses: stellarwp/plugin-toolbox/.github/actions/release-publish@b4d05b1d0ead8cdb524c7f55aee80f7455e7b4aa
+                uses: stellarwp/plugin-toolbox/.github/actions/release-publish@c71c3832596c732ef5021c0183b1d65139aacb29
                 with:
                     version: ${{ steps.merge.outputs.version }}
                     target: ${{ steps.merge.outputs.base-sha }}
