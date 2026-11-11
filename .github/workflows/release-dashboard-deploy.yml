@@ -135,7 +135,7 @@ jobs:
             # @v1 once plugin-toolbox publishes a release.
             -   name: Merge the release into master and master back into develop
                 id: merge
-                uses: stellarwp/plugin-toolbox/.github/actions/release-merge@398e5cad3a08adcfa281caac5c68f1acdbabf66b
+                uses: stellarwp/plugin-toolbox/.github/actions/release-merge@b4d05b1d0ead8cdb524c7f55aee80f7455e7b4aa
                 with:
                     branch: ${{ inputs.branch }}
                     # The commit the run was started on: a push to the branch after the dispatch is refused
@@ -199,7 +199,7 @@ jobs:
             # version back. A retry after a failed write runs them again for the same version, which
             # writes the same bytes.
             -   name: Deploy plugin zip to GiveWP.com
-                if: steps.merge.outputs.published == 'no'
+                if: steps.merge.outputs.already-published == 'no'
                 uses: burnett01/rsync-deployments@v9
                 with:
                     switches: -avz --omit-dir-times --no-perms
@@ -210,7 +210,7 @@ jobs:
                     remote_key: ${{ secrets.WEBSITE_DEPLOY_PRIVATE_KEY }}
 
             -   name: Deploy plugin readme to GiveWP.com
-                if: steps.merge.outputs.published == 'no'
+                if: steps.merge.outputs.already-published == 'no'
                 uses: burnett01/rsync-deployments@v9
                 with:
                     switches: -avz --omit-dir-times --no-perms
@@ -224,7 +224,7 @@ jobs:
             # the one release-merge validated (trimmed, three or four numeric parts), never the raw input,
             # since it goes into a shell script.
             -   name: Update release version on website
-                if: steps.merge.outputs.published == 'no'
+                if: steps.merge.outputs.already-published == 'no'
                 uses: appleboy/ssh-action@v1
                 with:
                     host: ${{ secrets.WEBSITE_DEPLOY_HOST }}
@@ -235,7 +235,7 @@ jobs:
                         wp post meta update ${{ secrets.EDD_PRODUCT_ID }} _edd_sl_version ${{ steps.merge.outputs.version }}
 
             -   uses: $/.github/actions/push-translations
-                if: ${{ inputs.push_translations && steps.merge.outputs.published == 'no' }}
+                if: ${{ inputs.push_translations && steps.merge.outputs.already-published == 'no' }}
                 with:
                     plugin_slug: ${{ inputs.plugin_slug }}
                 env:
@@ -255,7 +255,7 @@ jobs:
 
             -   name: Publish the GitHub release
                 id: publish
-                uses: stellarwp/plugin-toolbox/.github/actions/release-publish@398e5cad3a08adcfa281caac5c68f1acdbabf66b
+                uses: stellarwp/plugin-toolbox/.github/actions/release-publish@b4d05b1d0ead8cdb524c7f55aee80f7455e7b4aa
                 with:
                     version: ${{ steps.merge.outputs.version }}
                     target: ${{ steps.merge.outputs.base-sha }}
@@ -267,7 +267,7 @@ jobs:
             # Not repeated on a retry of a published version: the release was announced when it went out.
             -   name: Build the release announcement
                 id: announcement
-                if: steps.merge.outputs.published == 'no'
+                if: steps.merge.outputs.already-published == 'no'
                 env:
                     GH_TOKEN: ${{ github.token }}
                     GH_REPO: ${{ github.repository }}
@@ -290,7 +290,7 @@ jobs:
                     } >> "$GITHUB_OUTPUT"
 
             -   name: Slack Notification
-                if: steps.merge.outputs.published == 'no'
+                if: steps.merge.outputs.already-published == 'no'
                 uses: someimportantcompany/github-actions-slack-message@v1
                 with:
                     webhook-url: ${{ secrets.SLACK_ANNOUNCEMENT_WEBHOOK }}
